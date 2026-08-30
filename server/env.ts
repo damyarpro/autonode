@@ -14,6 +14,14 @@ export const env = {
   publicUrl: process.env.PUBLIC_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8787}`,
   dbFile: process.env.DB_FILE ?? 'data/autonode.db',
 
+  /**
+   * Serving the built app from the API puts both on one origin, which is what
+   * makes the session cookie work in production. Off in dev, where Vite serves
+   * the app and proxies /api.
+   */
+  staticDir: process.env.STATIC_DIR ?? 'dist',
+  serveStatic: bool(process.env.SERVE_STATIC, false),
+
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
   // Secret path segment on the webhook route; generated per boot when unset so
   // an unconfigured server never exposes a guessable endpoint.

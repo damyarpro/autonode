@@ -1,6 +1,8 @@
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance } from 'fastify'
+import fastifyStatic from '@fastify/static'
 import { env, hasClaude, hasTelegram } from './env.ts'
 import { db } from './db/index.ts'
 import { adapterStatus } from './adapters/registry.ts'
@@ -59,7 +61,33 @@ export async function buildServer() {
   await app.register(checkout)
   await app.register(appRoutes)
   await app.register(toolRoutes)
+
+  await serveBuiltApp(app)
   return app
+}
+
+/**
+ * In production one process serves both halves. Same origin means the session
+ * cookie is sent with every API call and no CORS is involved — the two gaps the
+ * README calls out for a split deployment.
+ */
+async function serveBuiltApp(app: FastifyInstance): Promise<void> {
+  const root = resolve(env.staticDir)
+  if (!env.serveStatic) return
+  if (!existsSync(root)) {
+    console.warn(`[static] SERVE_STATIC is on but ${root} does not exist — run npm run build first`)
+    return
+  }
+
+  await app.register(fastifyStatic, { root, wildcard: false })
+
+  // The app routes on the hash, so any non-API GET is the same shell.
+  app.setNotFoundHandler((request, reply) => {
+    if (request.method !== 'GET' || request.url.startsWith('/api/')) {
+      return reply.code(404).send({ error: 'not found' })
+    }
+    return reply.sendFile('index.html')
+  })
 }
 
 const isEntrypoint = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])
@@ -75,5 +103,6 @@ if (isEntrypoint) {
   console.log(`  ai              →  ${status.ai}${hasClaude() ? '' : '  (set ANTHROPIC_API_KEY for Claude)'}`)
   console.log(`  telegram        →  ${hasTelegram() ? 'live' : 'simulated  (set TELEGRAM_BOT_TOKEN)'}`)
   if (hasTelegram()) console.log(`  webhook path    →  /api/webhooks/telegram/${env.telegramWebhookSecret}`)
-  console.log(`  payments        →  ${status.payments}  (no gateway, no real money)\n`)
+  console.log(`  payments        →  ${status.payments}  (no gateway, no real money)`)
+  console.log(`  static app      →  ${env.serveStatic ? resolve(env.staticDir) : 'off  (Vite serves it in dev)'}\n`)
 }

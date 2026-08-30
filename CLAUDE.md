@@ -14,6 +14,7 @@ npm run typecheck  # tsc -b across all three tsconfig projects
 npm test           # node --test over server/**/*.test.ts (domain + HTTP routes)
 npm run e2e        # one lead, capture to reinvested budget, on a throwaway DB
 npm run seed -- --fresh   # rebuild the sample database
+npm start          # production: one process, API + built app on one origin
 ```
 
 **Never report work as done without `npm run build`, `npm test` and, when the
@@ -46,7 +47,13 @@ docs/screenshots/  what the README shows; regenerate with the `shoot` skill.
 `.claude/skills/` holds five project skills — `verify`, `add-tool`,
 `add-adapter`, `add-page`, `shoot`. Reach for the matching one instead of
 rediscovering the conventions. `.github/workflows/ci.yml` runs typecheck, build,
-tests and the e2e script on every push.
+tests and the e2e script on every push; `pages.yml` publishes the built app to
+GitHub Pages on `main`.
+
+**Deployment is single-origin.** With `SERVE_STATIC=true` the API also serves
+`dist/`, so the session cookie is sent with every request and no CORS is
+involved. Keep it that way: a split deployment breaks cookie auth. The
+`Dockerfile` builds that one process; `/data` is the only writable path.
 
 ## Rules that must hold
 

@@ -5,6 +5,9 @@ const API = process.env.VITE_API_PROXY ?? 'http://127.0.0.1:8787'
 
 export default defineConfig({
   plugins: [react()],
+  // GitHub project pages serve from /<repo>/, so the asset paths need a prefix.
+  // Empty for the single-origin deployment, where the API serves dist/ from /.
+  base: process.env.BASE_PATH ?? '/',
   server: {
     host: '127.0.0.1',
     port: 5173,
