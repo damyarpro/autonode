@@ -5,6 +5,7 @@ import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import AiCoach from './pages/AiCoach'
 import Tools from './pages/Tools'
+import AiToolPage from './pages/AiToolPage'
 import SalesAutomation from './pages/SalesAutomation'
 import Leads from './pages/Leads'
 import Inbox from './pages/Inbox'
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/ai-coach" element={<AiCoach />} />
           <Route path="/tools" element={<Tools />} />
+          <Route path="/tools/:toolId" element={<AiToolPage />} />
 
           {/* The sales-automation tool, reached from the tools grid. */}
           <Route path="/sales-automation" element={<SalesAutomation />} />

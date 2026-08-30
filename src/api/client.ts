@@ -3,13 +3,47 @@ const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/
 
 export const apiUrl = (path: string) => `${BASE}${path}`
 
+/**
+ * Carries the status and the parsed body, so callers can show the server's own
+ * validation messages instead of a bare "400".
+ */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: unknown,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+
+  /** Validation messages the API returned, if any. */
+  get messages(): string[] {
+    const body = this.body as { errors?: unknown; error?: unknown } | null
+    if (Array.isArray(body?.errors)) return body.errors.map(String)
+    if (typeof body?.error === 'string') return [body.error]
+    return []
+  }
+}
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrl(path), {
     ...init,
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
   })
-  if (!response.ok) throw new Error(`${init?.method ?? 'GET'} ${path} → ${response.status}`)
-  return (await response.json()) as T
+
+  const text = await response.text()
+  let parsed: unknown = null
+  try {
+    parsed = text ? JSON.parse(text) : null
+  } catch {
+    parsed = text
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, parsed, `${init?.method ?? 'GET'} ${path} → ${response.status}`)
+  }
+  return parsed as T
 }
 
 export const getJson = <T,>(path: string) => json<T>(path)
