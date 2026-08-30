@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { env } from '../../env.ts'
+import { businessBrief } from '../../domain/business.ts'
+import { getBusiness } from '../../db/queries.ts'
 import { templateAi } from './template.ts'
 import type { AiAdapter, CoachInput, DraftInput, NextBestAction, ToolRunInput } from '../types.ts'
 import type { AiToolSpec, ToolRunResult } from '../../../shared/aiToolSpecs.ts'
@@ -86,6 +88,13 @@ const toolPrompt = ({ spec, inputs, locale }: ToolRunInput) =>
 const complete = (result: ToolRunResult) =>
   result.summary.trim().length > 0 && result.sections.every((section) => section.items.some((item) => item.trim()))
 
+/**
+ * The owner's own business, prepended to every call. It goes in the first user
+ * message rather than the system prompt so the cached system prefix stays
+ * stable when they edit their profile.
+ */
+const withBusiness = (locale: string, body: string) => `${businessBrief(getBusiness(), locale)}\n\n${body}`
+
 const context = (input: Omit<DraftInput, 'template'>) =>
   [
     `Lead: ${input.lead.name ?? 'unknown'} (${input.lead.handle ?? 'no handle'})`,
@@ -113,7 +122,10 @@ export const claudeAi: AiAdapter = {
         messages: [
           {
             role: 'user',
-            content: `${context(input)}\n\nWrite the "${input.template}" step of the ${input.route} sequence.`,
+            content: withBusiness(
+              input.lead.locale,
+              `${context(input)}\n\nWrite the "${input.template}" step of the ${input.route} sequence.`,
+            ),
           },
         ],
       })
@@ -136,6 +148,7 @@ export const claudeAi: AiAdapter = {
           {
             role: 'user',
             content:
+              `${businessBrief(getBusiness(), locale)}\n\n` +
               `Locale: ${locale}. The user is on level ${context.levelId} of 7, ` +
               `${context.percent}% through overall` +
               (context.headline ? `, and describes their business as "${context.headline}".` : '.'),
@@ -160,7 +173,7 @@ export const claudeAi: AiAdapter = {
         max_tokens: 4000,
         thinking: { type: 'adaptive' },
         system: [{ type: 'text', text: TOOL_SYSTEM, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: toolPrompt(input) }],
+        messages: [{ role: 'user', content: withBusiness(input.locale, toolPrompt(input)) }],
         output_config: { format: zodOutputFormat(toolSchema(spec)) },
       })
       const parsed = response.parsed_output as Record<string, unknown> | null | undefined
@@ -196,7 +209,9 @@ export const claudeAi: AiAdapter = {
         max_tokens: 1000,
         thinking: { type: 'adaptive' },
         system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: `${context(input)}\n\nPick the next best action.` }],
+        messages: [
+          { role: 'user', content: withBusiness(input.lead.locale, `${context(input)}\n\nPick the next best action.`) },
+        ],
         output_config: { format: zodOutputFormat(NextBestActionSchema) },
       })
       if (response.parsed_output) return response.parsed_output

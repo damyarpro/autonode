@@ -11,6 +11,7 @@ import type {
   Stage,
 } from '../types.ts'
 import { emptyFacts, type PipelineFacts } from '../domain/pipeline-view.ts'
+import { emptyBusiness, TONES, type BusinessProfile, type Tone } from '../domain/business.ts'
 import type { ToolRun, ToolRunResult } from '../../shared/aiToolSpecs.ts'
 
 const rows = <T>(sql: string, ...params: unknown[]): T[] =>
@@ -325,3 +326,61 @@ export const listToolRuns = (toolId: string, limit = 10): ToolRun[] =>
 /** False when there was no such run to delete. */
 export const deleteToolRun = (id: number): boolean =>
   Number(run('DELETE FROM tool_runs WHERE id = ?', id).changes) > 0
+
+// ── business profile ─────────────────────────────────────────────────────
+
+type BusinessRow = {
+  name: string
+  what_we_sell: string
+  audience: string
+  tone: string
+  price_toman: number
+  channels_json: string
+  cta_url: string | null
+  notes: string | null
+}
+
+/** Reads the single row, creating it on first access. */
+export function getBusiness(): BusinessProfile {
+  run('INSERT OR IGNORE INTO business_profile (id) VALUES (1)')
+  const found = row<BusinessRow>('SELECT * FROM business_profile WHERE id = 1')
+  if (!found) return emptyBusiness()
+
+  let channels: Channel[] = []
+  try {
+    const parsed: unknown = JSON.parse(found.channels_json)
+    if (Array.isArray(parsed)) channels = parsed.filter((c): c is Channel => CHANNELS.includes(c as Channel))
+  } catch {
+    // A hand-edited row should not take the whole profile down.
+  }
+
+  return {
+    name: found.name,
+    whatWeSell: found.what_we_sell,
+    audience: found.audience,
+    tone: TONES.includes(found.tone as Tone) ? (found.tone as Tone) : 'friendly',
+    priceToman: Number(found.price_toman) || 0,
+    channels,
+    ctaUrl: found.cta_url,
+    notes: found.notes,
+  }
+}
+
+export function saveBusiness(patch: Partial<BusinessProfile>): BusinessProfile {
+  const current = getBusiness()
+  const next = { ...current, ...patch }
+  run(
+    `UPDATE business_profile SET name = ?, what_we_sell = ?, audience = ?, tone = ?,
+       price_toman = ?, channels_json = ?, cta_url = ?, notes = ?, updated_at = datetime('now')
+     WHERE id = 1`,
+    next.name,
+    next.whatWeSell,
+    next.audience,
+    next.tone,
+    Math.max(0, Math.round(next.priceToman)),
+    JSON.stringify(next.channels),
+    next.ctaUrl,
+    next.notes,
+  )
+  return getBusiness()
+}

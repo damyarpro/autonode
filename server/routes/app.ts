@@ -2,6 +2,9 @@ import type { FastifyInstance } from 'fastify'
 import { db } from '../db/index.ts'
 import { ai } from '../adapters/registry.ts'
 import { clampStages, currentLevel, LEVEL_STAGES, overallPercent, TOTAL_STAGES } from '../domain/levels.ts'
+import { missingFields, TONES, type Tone } from '../domain/business.ts'
+import { getBusiness, saveBusiness } from '../db/queries.ts'
+import { CHANNELS, type Channel } from '../types.ts'
 import type { ChatTurn } from '../adapters/types.ts'
 
 type ProfileRow = {
@@ -84,6 +87,49 @@ export default async function appRoutes(app: FastifyInstance) {
       )
       .run(...(fields.map(([, value]) => value) as never[]))
     return { ok: true }
+  })
+
+  app.get('/api/business', async () => {
+    const business = getBusiness()
+    return { business, missing: missingFields(business) }
+  })
+
+  app.patch('/api/business', async (request, reply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>
+    const patch: Record<string, unknown> = {}
+
+    const text = (key: string, max: number) => {
+      const value = body[key]
+      if (typeof value === 'string') patch[key] = value.trim().slice(0, max)
+    }
+    text('name', 120)
+    text('whatWeSell', 600)
+    text('audience', 300)
+    text('notes', 600)
+
+    if (typeof body.ctaUrl === 'string') {
+      const url = body.ctaUrl.trim()
+      // A malformed link would end up in generated posts, so reject it here.
+      if (url && !/^https?:\/\/\S+$/.test(url)) return reply.code(400).send({ error: 'invalid input', errors: ['ctaUrl:not_a_url'] })
+      patch.ctaUrl = url || null
+    }
+    if (typeof body.tone === 'string') {
+      if (!TONES.includes(body.tone as Tone)) return reply.code(400).send({ error: 'invalid input', errors: ['tone:not_an_option'] })
+      patch.tone = body.tone
+    }
+    if (body.priceToman !== undefined) {
+      const price = Number(body.priceToman)
+      if (!Number.isFinite(price) || price < 0) return reply.code(400).send({ error: 'invalid input', errors: ['priceToman:not_a_number'] })
+      patch.priceToman = price
+    }
+    if (Array.isArray(body.channels)) {
+      patch.channels = body.channels.filter((c): c is Channel => CHANNELS.includes(c as Channel))
+    }
+
+    if (Object.keys(patch).length === 0) return reply.code(400).send({ error: 'nothing to update' })
+
+    const business = saveBusiness(patch)
+    return { business, missing: missingFields(business) }
   })
 
   app.get('/api/progress', async () => {

@@ -133,3 +133,18 @@ CREATE TABLE IF NOT EXISTS tool_runs (
   at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS tool_runs_tool ON tool_runs (tool_id, id DESC);
+
+-- What the owner tells us about their business. Every AI call reads this, so a
+-- generated post or call brief is about their offer rather than a generic one.
+CREATE TABLE IF NOT EXISTS business_profile (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  name          TEXT NOT NULL DEFAULT '',
+  what_we_sell  TEXT NOT NULL DEFAULT '',
+  audience      TEXT NOT NULL DEFAULT '',
+  tone          TEXT NOT NULL DEFAULT 'friendly',
+  price_toman   INTEGER NOT NULL DEFAULT 0,
+  channels_json TEXT NOT NULL DEFAULT '[]',
+  cta_url       TEXT,
+  notes         TEXT,
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
