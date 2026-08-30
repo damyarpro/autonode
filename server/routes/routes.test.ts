@@ -364,18 +364,154 @@ test('a json post with a malformed body is rejected without killing the server',
     payload: '{not json',
   })
 
-  // KNOWN DEFECT — this is a 500 today, and it should be a 400.
-  // The custom parser in server/index.ts hands the SyntaxError straight to
-  // done(), and a bare Error has no `statusCode`, so Fastify reports a server
-  // fault for what is a malformed client request. Fastify's own JSON parser
-  // stamps `err.statusCode = 400` before rethrowing. The assertion below is
-  // deliberately loose so the suite stays green either way; tighten it to
-  // `assert.equal(response.statusCode, 400)` once the parser is fixed.
-  assert.ok(
-    response.statusCode === 400 || response.statusCode === 500,
-    `malformed json should be a client error, got ${response.statusCode}`,
-  )
+  // The parser in server/index.ts stamps the SyntaxError with a statusCode,
+  // the way Fastify's own JSON parser does; without that stamp Fastify reports
+  // a malformed client request as a 500.
+  assert.equal(response.statusCode, 400)
 
   // What must hold regardless: the process survives and keeps serving.
   assert.equal((await get('/api/health')).statusCode, 200)
+})
+
+// ── the business profile, and the three halves that read it ──────────────
+//
+// These run in file order after the cases above, so the profile written here
+// is the one the content and call cases rely on. That is deliberate: a produce
+// call before it would 409, which is itself the first assertion.
+
+test('producing content before the business profile is filled in is refused', async () => {
+  const response = await send('POST', '/api/content/produce', { count: 2 })
+
+  assert.equal(response.statusCode, 409)
+  const body = response.json() as { errors: string[] }
+  assert.deepEqual(body.errors, ['name:required', 'whatWeSell:required', 'audience:required'])
+})
+
+test('the business profile round-trips and reports what is still missing', async () => {
+  const blank = await get('/api/business')
+  assert.equal(blank.statusCode, 200)
+  assert.equal((blank.json() as { missing: string[] }).missing.length, 3)
+
+  const bad = await send('PATCH', '/api/business', { ctaUrl: 'not-a-link' })
+  assert.equal(bad.statusCode, 400)
+  assert.deepEqual((bad.json() as { errors: string[] }).errors, ['ctaUrl:not_a_url'])
+
+  const saved = await send('PATCH', '/api/business', {
+    name: 'کارگاه رشد',
+    whatWeSell: 'دوره‌ی فروش برای فریلنسرها',
+    audience: 'فریلنسرهای فارسی‌زبان',
+    priceToman: 4_900_000,
+    channels: ['telegram', 'website', 'not-a-channel'],
+  })
+  assert.equal(saved.statusCode, 200)
+
+  const body = saved.json() as { business: { name: string; channels: string[] }; missing: string[] }
+  assert.equal(body.business.name, 'کارگاه رشد')
+  assert.deepEqual(body.business.channels, ['telegram', 'website'], 'an unknown channel is dropped, not stored')
+  assert.deepEqual(body.missing, [])
+})
+
+test('content is produced, listed, published and deleted', async () => {
+  const produced = await send('POST', '/api/content/produce', {
+    count: 3,
+    perDay: 24,
+    channels: ['telegram', 'website'],
+  })
+  assert.equal(produced.statusCode, 201)
+
+  const { pieces, producedBy } = produced.json() as {
+    pieces: { id: number; channel: string; status: string }[]
+    producedBy: string
+  }
+  assert.equal(pieces.length, 3)
+  // No ANTHROPIC_API_KEY in this environment, so the flag must say template.
+  assert.equal(producedBy, 'template')
+  assert.ok(pieces.every((piece) => ['telegram', 'website'].includes(piece.channel)))
+
+  const published = await send('POST', '/api/content/publish')
+  assert.equal(published.statusCode, 200)
+  assert.equal((published.json() as { published: number }).published, 3)
+
+  const listed = await get('/api/content?channel=telegram')
+  const list = listed.json() as { pieces: { id: number; channel: string; status: string }[] }
+  assert.ok(list.pieces.length > 0)
+  assert.ok(list.pieces.every((piece) => piece.channel === 'telegram'))
+  // With no bot token the piece is recorded, never claimed as delivered.
+  assert.ok(list.pieces.every((piece) => piece.status === 'simulated'))
+
+  const removed = await app.inject({ method: 'DELETE', url: `/api/content/${pieces[0].id}` })
+  assert.equal(removed.statusCode, 200)
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/content/${pieces[0].id}` })).statusCode, 404)
+})
+
+test('a bad produce request answers with codes, not prose', async () => {
+  const response = await send('POST', '/api/content/produce', { count: 0, channels: 'telegram' })
+
+  assert.equal(response.statusCode, 400)
+  const { errors } = response.json() as { errors: string[] }
+  assert.ok(errors.includes('count:not_a_number'))
+  assert.ok(errors.includes('channels:not_a_list'))
+})
+
+test('a call brief is written even with no voice credentials', async () => {
+  const lead = await createLead()
+  const response = await send('POST', `/api/calls/${lead.id}/prepare`)
+
+  assert.equal(response.statusCode, 200)
+  const body = response.json() as {
+    brief: { opening: string; objections: { objection: string; answer: string }[]; ask: string; producedBy: string }
+    live: boolean
+  }
+  assert.equal(body.live, false, 'no VAPI_API_KEY, so nothing was dialled')
+  assert.equal(body.brief.producedBy, 'template')
+  assert.ok(body.brief.opening.length > 0)
+  assert.equal(body.brief.objections.length, 2)
+  assert.ok(body.brief.ask.length > 0)
+
+  const missing = await send('POST', '/api/calls/999999/prepare')
+  assert.equal(missing.statusCode, 404)
+  assert.deepEqual((missing.json() as { errors: string[] }).errors, ['leadId:unknown_lead'])
+})
+
+test('a meeting is booked once, and the same slot is refused after', async () => {
+  const lead = await createLead()
+
+  const slots = await get('/api/calls/slots?days=3')
+  assert.equal(slots.statusCode, 200)
+  const { slots: free, slotMinutes } = slots.json() as { slots: { start: string }[]; slotMinutes: number }
+  assert.ok(free.length > 0, 'the working-hours window should offer at least one slot')
+  assert.ok(slotMinutes > 0)
+
+  const booked = await send('POST', `/api/calls/${lead.id}/book`, { slotStart: free[0].start })
+  assert.equal(booked.statusCode, 201)
+
+  const twice = await send('POST', `/api/calls/${lead.id}/book`, { slotStart: free[0].start })
+  assert.equal(twice.statusCode, 409)
+  assert.deepEqual((twice.json() as { errors: string[] }).errors, ['slotStart:taken'])
+
+  const past = await send('POST', `/api/calls/${lead.id}/book`, { slotStart: '2020-01-01T09:00:00.000Z' })
+  assert.equal(past.statusCode, 409)
+  assert.deepEqual((past.json() as { errors: string[] }).errors, ['slotStart:past'])
+
+  assert.equal((await send('POST', `/api/calls/${lead.id}/book`, {})).statusCode, 400)
+
+  const listed = await get(`/api/calls?leadId=${lead.id}`)
+  const { counts } = listed.json() as { counts: { meetings: number } }
+  assert.equal(counts.meetings, 1)
+})
+
+test('a voice job with no credentials returns a timed script, not a failure', async () => {
+  const response = await send('POST', '/api/media/voice', {
+    script: 'سلام. اگر فریلنسر هستی و فروش برایت سخت است، این را گوش کن.',
+    locale: 'fa',
+  })
+
+  assert.equal(response.statusCode, 201)
+  const { job } = response.json() as {
+    job: { status: string; adapter: string; output: { script: { lines: unknown[]; durationSec: number } } }
+  }
+  assert.equal(job.status, 'scripted')
+  assert.equal(job.adapter, 'script-only')
+  assert.ok(job.output.script.lines.length > 0)
+  assert.ok(job.output.script.durationSec > 0)
 })

@@ -6,7 +6,7 @@ import { Card, CardHead, PrimaryButton, Row } from '../components/Card'
 import Chip from '../components/Chip'
 import { Icon } from '../components/Icon'
 import { NodeIcon } from '../components/icons'
-import { useCalls, type Booking, type CallRecord, type CallSlot } from '../api/useCalls'
+import { useCalls, type Booking, type CallRecord, type CallSlot, type CallsFailure } from '../api/useCalls'
 import type { ApiLead } from '../api/client'
 import { explainCode } from '../i18n/errors'
 import { useI18n } from '../i18n/I18nProvider'
@@ -295,9 +295,6 @@ export default function Calls() {
       ? COPY.notLive
       : COPY.dialUnknown
 
-  const errorLine =
-    error?.kind === 'offline' ? COPY.errorOffline : error?.kind === 'server' ? COPY.errorServer : COPY.failed
-
   const pickLead = (id: number) => {
     setLeadId((prev) => (prev === id ? null : id))
     setSlotStart(null)
@@ -390,6 +387,8 @@ export default function Calls() {
           {leadId === null && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.leadPickFirst)}</p>}
         </div>
 
+        {error?.source === 'prepare' && <Failure failure={error} />}
+
         {prepared && (
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -461,7 +460,11 @@ export default function Calls() {
                         key={slot.start}
                         type="button"
                         aria-pressed={on}
-                        onClick={() => setSlotStart(on ? null : slot.start)}
+                        onClick={() => {
+                          // The last refusal was about the old slot, not this one.
+                          desk.clearError()
+                          setSlotStart(on ? null : slot.start)
+                        }}
                         className={`rounded-full px-3 py-1.5 text-[11px] tabular-nums transition ${
                           on
                             ? 'bg-accent text-white'
@@ -494,6 +497,8 @@ export default function Calls() {
           )}
         </div>
 
+        {error?.source === 'book' && <Failure failure={error} />}
+
         {lastBooking && (
           <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2.5">
             <p className="text-[11.5px] text-success">
@@ -513,22 +518,6 @@ export default function Calls() {
           </div>
         )}
       </Card>
-
-      {error && (
-        <div className="mt-3 rounded-xl border border-hairline bg-white/[0.05] px-3 py-2.5">
-          <p className="flex items-center gap-2 text-[11.5px] text-white/80">
-            <Chip tone="hot">{t(COPY.problem)}</Chip>
-            {t(errorLine)}
-          </p>
-          {error.messages.length > 0 && (
-            <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70">
-              {error.messages.map((message) => (
-                <li key={message}>{t(explainCode(message, undefined, n))}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       {/* 4 — what is actually on the calendar and in the log. */}
       <Card className="mt-3">
@@ -590,8 +579,33 @@ export default function Calls() {
             </p>
           )}
         </div>
+
+        {error?.source === 'runDue' && <Failure failure={error} />}
       </Card>
     </AppShell>
+  )
+}
+
+/** One failure, said in the reader's language: the server only sends codes. */
+function Failure({ failure }: { failure: CallsFailure }) {
+  const { t, n } = useI18n()
+  const line =
+    failure.kind === 'offline' ? COPY.errorOffline : failure.kind === 'server' ? COPY.errorServer : COPY.failed
+
+  return (
+    <div className="mt-3 rounded-xl border border-hairline bg-white/[0.05] px-3 py-2.5">
+      <p className="flex items-center gap-2 text-[11.5px] text-white/80">
+        <Chip tone="hot">{t(COPY.problem)}</Chip>
+        {t(line)}
+      </p>
+      {failure.messages.length > 0 && (
+        <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70">
+          {failure.messages.map((message) => (
+            <li key={message}>{t(explainCode(message, undefined, n))}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 

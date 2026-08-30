@@ -74,6 +74,8 @@ export type DueWork = { reminders: number; referrals: number }
  */
 export type CallsFailure = {
   kind: 'validation' | 'unavailable' | 'not_found' | 'offline' | 'server'
+  /** Which action failed, so the page can put the sentence next to it. */
+  source: 'prepare' | 'book' | 'runDue'
   messages: string[]
 }
 
@@ -113,13 +115,12 @@ const EMPTY_COUNTS: CallCounts = { calls: 0, meetings: 0, referralAsks: 0 }
 const SLOT_DAYS = 7
 const POLL_MS = 20_000
 
-function failureOf(cause: unknown): CallsFailure {
-  if (!(cause instanceof ApiError)) return { kind: 'offline', messages: [] }
-  if (cause.status === 400) return { kind: 'validation', messages: cause.messages }
-  // A 404 carries no `errors` array, so the code the page explains is made here.
-  if (cause.status === 404) return { kind: 'not_found', messages: ['leadId:unknown_lead'] }
-  if (cause.status === 409) return { kind: 'unavailable', messages: cause.messages }
-  return { kind: 'server', messages: cause.messages }
+function failureOf(cause: unknown, source: CallsFailure['source']): CallsFailure {
+  if (!(cause instanceof ApiError)) return { kind: 'offline', source, messages: [] }
+  if (cause.status === 400) return { kind: 'validation', source, messages: cause.messages }
+  if (cause.status === 404) return { kind: 'not_found', source, messages: cause.messages }
+  if (cause.status === 409) return { kind: 'unavailable', source, messages: cause.messages }
+  return { kind: 'server', source, messages: cause.messages }
 }
 
 /**
@@ -192,8 +193,8 @@ export function useCalls(leadId: number | null): CallsState {
     setError(null)
   }, [leadId])
 
-  const fail = useCallback((cause: unknown) => {
-    const failure = failureOf(cause)
+  const fail = useCallback((cause: unknown, source: CallsFailure['source']) => {
+    const failure = failureOf(cause, source)
     setError(failure)
     if (failure.kind === 'offline') setOnline(false)
     return failure
@@ -212,7 +213,7 @@ export function useCalls(leadId: number | null): CallsState {
         await loadCalls().catch(() => setOnline(false))
         return true
       } catch (cause) {
-        fail(cause)
+        fail(cause, 'prepare')
         return false
       } finally {
         setPreparing(false)
@@ -232,7 +233,7 @@ export function useCalls(leadId: number | null): CallsState {
         await Promise.all([loadSlots(), loadCalls(), loadLeads()]).catch(() => setOnline(false))
         return true
       } catch (cause) {
-        const failure = fail(cause)
+        const failure = fail(cause, 'book')
         // A slot is usually refused because someone else took it, which means
         // the list the owner is looking at is already out of date.
         if (failure.kind === 'unavailable') await loadSlots().catch(() => setOnline(false))
@@ -254,7 +255,7 @@ export function useCalls(leadId: number | null): CallsState {
       await loadCalls().catch(() => setOnline(false))
       return true
     } catch (cause) {
-      fail(cause)
+      fail(cause, 'runDue')
       return false
     } finally {
       setRunning(false)

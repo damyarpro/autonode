@@ -14,7 +14,9 @@ export default async function callRoutes(app: FastifyInstance) {
     if (!Number.isInteger(leadId)) return reply.code(400).send({ error: 'invalid input', errors: ['leadId:not_a_number'] })
 
     const prepared = await prepareCall(leadId)
-    if (!prepared) return reply.code(404).send({ error: 'not found' })
+    // The code travels with the 404 so the client has something to translate,
+    // rather than inferring a sentence from the status alone.
+    if (!prepared) return reply.code(404).send({ error: 'not found', errors: ['leadId:unknown_lead'] })
 
     return { brief: prepared.brief, call: prepared.call, adapter: voice().name, live: voice().live }
   })
@@ -43,7 +45,8 @@ export default async function callRoutes(app: FastifyInstance) {
 
     const result = bookMeeting(leadId, slotStart)
     if (result.ok) return reply.code(201).send({ booking: result.booking, reminders: result.reminders })
-    if (result.code === 'unknown_lead') return reply.code(404).send({ error: 'not found' })
+    if (result.code === 'unknown_lead')
+      return reply.code(404).send({ error: 'not found', errors: ['leadId:unknown_lead'] })
     // Past, taken or outside the working day: the slot is real but unavailable.
     return reply.code(409).send({ error: 'slot unavailable', errors: [`slotStart:${result.code}`] })
   })

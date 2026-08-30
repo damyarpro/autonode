@@ -25,6 +25,7 @@ const COPY = {
   },
   toBusiness: { fa: 'پروفایل بیزینسی', en: 'Business profile' },
   close: { fa: 'بستن', en: 'Close' },
+  dismiss: { fa: 'بستن توضیح این نود', en: 'Dismiss this node’s description' },
   noGuide: {
     fa: 'هنوز توضیحی برای این نود نوشته نشده.',
     en: 'No description has been written for this node yet.',
@@ -55,7 +56,7 @@ export default function NodeSheet({ node, onClose }: { node: StageNode | null; o
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
       <button
         type="button"
-        aria-label={t(COPY.close)}
+        aria-label={t(COPY.dismiss)}
         onClick={onClose}
         className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
       />
