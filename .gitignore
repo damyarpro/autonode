@@ -2,8 +2,10 @@ node_modules
 dist
 .DS_Store
 *.local
-
 *.tsbuildinfo
 
-data/
+# The SQLite database, at the repository root only. An unanchored `data/`
+# also matched src/data/, which silently kept three source files out of the
+# repository until CI failed on the missing imports.
+/data/
 .env
