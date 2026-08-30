@@ -154,7 +154,8 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 | Checkout | local mock — no gateway, no money |
 | Authentication | real, **opt-in** — off unless `APP_PASSWORD` or `APP_PASSWORD_HASH` is set |
 | The seven AI tools | real, at `#/tools/:id` — structured output from Claude, templates otherwise |
-| The two courses, subscription management, privacy settings, sign-out | not built; `<SoonBadge />` |
+| Sign-out | real, when a password is configured — there is no session to end otherwise |
+| The two courses, subscription management, privacy settings | not built; `<SoonBadge />` |
 
 Keep this table honest. If you build one of these, move the row and update the
 README in the same commit.
@@ -175,9 +176,11 @@ can toggle them.
 
 The Telegram webhook is protected by a secret path segment; the generic
 `POST /api/webhooks/:channel` requires an HMAC signature when
-`WEBHOOK_SIGNING_SECRET` is set. **`POST /api/webhooks/payment` has neither**,
-so on a public deployment anyone can claim a mock payment happened — a
-pre-existing gap, and the first one to close.
+`WEBHOOK_SIGNING_SECRET` is set. `POST /api/webhooks/payment` accepts only a
+confirmation carrying the token `startCheckout` signed, and re-reads the deal
+row so a valid token cannot confirm a different amount — the signing key is
+random per boot when `CHECKOUT_SIGNING_SECRET` is unset, so this holds on an
+empty `.env`.
 
 ## Working with Claude
 

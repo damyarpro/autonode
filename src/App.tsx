@@ -1,6 +1,6 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from './i18n/I18nProvider'
-import { useSession } from './api/useSession'
+import { SessionProvider, useSessionContext } from './api/SessionProvider'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Levels from './pages/Levels'
@@ -22,7 +22,7 @@ import Inbox from './pages/Inbox'
  * on an empty environment.
  */
 function Gate() {
-  const session = useSession()
+  const session = useSessionContext()
 
   if (session.loading) return null
   if (session.enabled && !session.authenticated) return <Login login={session.login} />
@@ -60,7 +60,9 @@ function Gate() {
 export default function App() {
   return (
     <I18nProvider>
-      <Gate />
+      <SessionProvider>
+        <Gate />
+      </SessionProvider>
     </I18nProvider>
   )
 }
