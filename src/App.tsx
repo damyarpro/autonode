@@ -8,6 +8,9 @@ import Profile from './pages/Profile'
 import AiCoach from './pages/AiCoach'
 import Tools from './pages/Tools'
 import Business from './pages/Business'
+import Content from './pages/Content'
+import Calls from './pages/Calls'
+import Studio from './pages/Studio'
 import AiToolPage from './pages/AiToolPage'
 import SalesAutomation from './pages/SalesAutomation'
 import Leads from './pages/Leads'
@@ -37,6 +40,11 @@ function Gate() {
 
         {/* The business profile every AI feature reads. Reached from Profile. */}
         <Route path="/business" element={<Business />} />
+
+        {/* One page per group of board nodes, reached by tapping the node. */}
+        <Route path="/content" element={<Content />} />
+        <Route path="/calls" element={<Calls />} />
+        <Route path="/studio" element={<Studio />} />
 
         {/* The sales-automation tool, reached from the tools grid. */}
         <Route path="/sales-automation" element={<SalesAutomation />} />
