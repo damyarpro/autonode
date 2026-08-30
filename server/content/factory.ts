@@ -8,7 +8,7 @@ import { env } from '../env.ts'
 import { ai, channelFor } from '../adapters/registry.ts'
 import * as q from '../db/queries.ts'
 import { publish } from '../events.ts'
-import { isUsable, missingFields } from '../domain/business.ts'
+import { destinationFor, isUsable, missingFields } from '../domain/business.ts'
 import {
   briefsFor,
   mergeDrafts,
@@ -116,10 +116,10 @@ export function persistPlan(plan: ContentPlan): ContentRecord[] {
  * a live adapter reads — with none, Telegram has nowhere to put the piece and
  * says so, which is the truth rather than a silent success.
  */
-const audience = (piece: ContentRecord): Lead => ({
+const audience = (piece: ContentRecord, target: string | null): Lead => ({
   id: 0,
   source: piece.channel,
-  external_id: piece.target,
+  external_id: target,
   handle: null,
   name: null,
   locale: piece.locale,
@@ -140,18 +140,26 @@ const audience = (piece: ContentRecord): Lead => ({
 export async function publishDue(now = new Date(), limit = 25): Promise<number> {
   let published = 0
 
+  // Read once per pass, and read now rather than when the batch was written:
+  // the owner may fill a channel's destination in after producing a week of
+  // pieces, and those pieces should then go where they now belong.
+  const business = q.getBusiness()
+
   for (const piece of q.dueContent(now, limit)) {
     try {
       const adapter = channelFor(piece.channel)
+      // A piece that already went somewhere keeps that address; everything else
+      // asks the profile where this channel publishes.
+      const target = piece.target ?? destinationFor(business, piece.channel)
 
       // A live channel needs somewhere to put it. Saying so beats a generic
       // rejection, and beats calling it published when nothing was delivered.
-      if (adapter.live && !piece.target) {
+      if (adapter.live && !target) {
         q.markContentStatus(piece.id, 'failed', 'target:required')
         continue
       }
 
-      const result = await adapter.send(audience(piece), piece.body)
+      const result = await adapter.send(audience(piece, target), piece.body)
 
       if (result.status === 'failed') {
         q.markContentStatus(piece.id, 'failed', `${piece.channel}:rejected`)
@@ -161,6 +169,9 @@ export async function publishDue(now = new Date(), limit = 25): Promise<number> 
       // 'received' belongs to inbound messages; anything else is what the
       // adapter actually did with this piece.
       const status = result.status === 'sent' ? 'sent' : 'simulated'
+      // Where it went is history now: the profile may name a different address
+      // tomorrow, and this row must keep saying where this piece was delivered.
+      if (target !== piece.target) q.setContentTarget(piece.id, target)
       q.markContentStatus(piece.id, status, result.externalId ?? null)
       publish({ type: 'content.published', nodeId: piece.channel })
       published += 1

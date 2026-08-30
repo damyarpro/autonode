@@ -14,12 +14,23 @@ import {
 export {
   BUSINESS_CHANNELS,
   BUSINESS_LIMITS,
+  DESTINATION_LIMIT,
   TONES,
+  checkDestination,
+  destinationFor,
   emptyBusiness,
+  emptyDestinations,
   isUsable,
   missingFields,
+  normalizeDestinations,
 } from '../../shared/business.ts'
-export type { BusinessChannel, BusinessProfile, Tone } from '../../shared/business.ts'
+export type {
+  BusinessChannel,
+  BusinessProfile,
+  ChannelDestinations,
+  DestinationCheck,
+  Tone,
+} from '../../shared/business.ts'
 
 // The shared list is written without importing server vocabulary, so these two
 // assignments are what fail the build if either side gains a channel the other

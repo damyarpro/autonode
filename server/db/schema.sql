@@ -238,3 +238,15 @@ CREATE TABLE IF NOT EXISTS referral_asks (
   status  TEXT NOT NULL DEFAULT 'pending',
   at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ── publishing destinations ──────────────────────────────────────────────
+-- Where each channel publishes: a Telegram chat id, a LinkedIn URN, the URL a
+-- site posts to. A satellite row rather than columns on business_profile, for
+-- the same reason content_schedule sits beside content_pieces — ALTER TABLE in
+-- a re-runnable schema file only works once. A profile stored before this table
+-- existed simply has no row, which reads back as every channel unset.
+CREATE TABLE IF NOT EXISTS business_destinations (
+  id                INTEGER PRIMARY KEY CHECK (id = 1),
+  destinations_json TEXT NOT NULL DEFAULT '{}',
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);

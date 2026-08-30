@@ -11,7 +11,15 @@ import type {
   Stage,
 } from '../types.ts'
 import { emptyFacts, type PipelineFacts } from '../domain/pipeline-view.ts'
-import { emptyBusiness, TONES, type BusinessProfile, type Tone } from '../domain/business.ts'
+import {
+  emptyBusiness,
+  emptyDestinations,
+  normalizeDestinations,
+  TONES,
+  type BusinessProfile,
+  type ChannelDestinations,
+  type Tone,
+} from '../domain/business.ts'
 import type { ToolRun, ToolRunResult } from '../../shared/aiToolSpecs.ts'
 import type { CallBrief } from '../domain/booking.ts'
 import { isStatus, type ContentKind, type ContentRecord, type ContentStatus } from '../domain/content.ts'
@@ -367,6 +375,7 @@ export function getBusiness(): BusinessProfile {
     channels,
     ctaUrl: found.cta_url,
     notes: found.notes,
+    destinations: readDestinations(),
   }
 }
 
@@ -386,6 +395,7 @@ export function saveBusiness(patch: Partial<BusinessProfile>): BusinessProfile {
     next.ctaUrl,
     next.notes,
   )
+  writeDestinations(next.destinations)
   return getBusiness()
 }
 
@@ -800,4 +810,47 @@ export function dealById(dealId: number): { id: number; lead_id: number; amount_
   return db()
     .prepare('SELECT id, lead_id, amount_toman, stage FROM deals WHERE id = ?')
     .get(dealId) as { id: number; lead_id: number; amount_toman: number; stage: string } | undefined
+}
+
+
+// ── publishing destinations ──────────────────────────────────────────────
+// A satellite of business_profile, read and written as part of the profile so
+// callers only ever see one shape. Kept here at the end because the table came
+// after the row it belongs to.
+
+/** Reads the destinations blob, creating the single row on first access. */
+function readDestinations(): ChannelDestinations {
+  run('INSERT OR IGNORE INTO business_destinations (id) VALUES (1)')
+  const found = row<{ destinations_json: string }>(
+    'SELECT destinations_json FROM business_destinations WHERE id = 1',
+  )
+  if (!found) return emptyDestinations()
+
+  try {
+    // `normalizeDestinations` drops anything that is not a channel we know, so
+    // a profile saved before this existed reads back as every channel unset.
+    return normalizeDestinations(JSON.parse(found.destinations_json))
+  } catch {
+    // A hand-edited row should not take the whole profile down.
+    return emptyDestinations()
+  }
+}
+
+/** Writes them back normalized, so nothing reaches the column we cannot read. */
+function writeDestinations(destinations: ChannelDestinations): void {
+  run('INSERT OR IGNORE INTO business_destinations (id) VALUES (1)')
+  run(
+    "UPDATE business_destinations SET destinations_json = ?, updated_at = datetime('now') WHERE id = 1",
+    JSON.stringify(normalizeDestinations(destinations)),
+  )
+}
+
+/**
+ * Records where a piece actually went. The address is resolved when the piece
+ * publishes, not when it is written, so this is history rather than derived
+ * state: the profile may name a different address tomorrow and this row must
+ * still say where this piece was delivered.
+ */
+export const setContentTarget = (id: number, target: string | null): void => {
+  run('UPDATE content_schedule SET target = ? WHERE content_piece_id = ?', target, id)
 }

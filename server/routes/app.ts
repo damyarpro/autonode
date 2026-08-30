@@ -2,7 +2,14 @@ import type { FastifyInstance } from 'fastify'
 import { db } from '../db/index.ts'
 import { ai } from '../adapters/registry.ts'
 import { clampStages, currentLevel, LEVEL_STAGES, overallPercent, TOTAL_STAGES } from '../domain/levels.ts'
-import { missingFields, TONES, type Tone } from '../domain/business.ts'
+import {
+  BUSINESS_CHANNELS,
+  checkDestination,
+  missingFields,
+  TONES,
+  type ChannelDestinations,
+  type Tone,
+} from '../domain/business.ts'
 import { getBusiness, saveBusiness } from '../db/queries.ts'
 import { CHANNELS, type Channel } from '../types.ts'
 import type { ChatTurn } from '../adapters/types.ts'
@@ -35,6 +42,10 @@ function ensureSeedRows(): void {
   const insert = db().prepare('INSERT OR IGNORE INTO level_progress (level_id) VALUES (?)')
   for (const levelId of Object.keys(LEVEL_STAGES)) insert.run(Number(levelId))
 }
+
+/** Narrows a JSON body field to a plain object, so a list or a string is ignored. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const readProgress = () => {
   ensureSeedRows()
@@ -124,6 +135,27 @@ export default async function appRoutes(app: FastifyInstance) {
     }
     if (Array.isArray(body.channels)) {
       patch.channels = body.channels.filter((c): c is Channel => CHANNELS.includes(c as Channel))
+    }
+    // Where each channel publishes. A channel left out of the object keeps what
+    // is stored, so the form can send one field without clearing the rest; a
+    // blank one is cleared, because "" is not an address. Anything that is not
+    // an object is ignored the way a non-array `channels` is.
+    if (isRecord(body.destinations)) {
+      const given = body.destinations
+      const next: ChannelDestinations = { ...getBusiness().destinations }
+      const errors: string[] = []
+
+      for (const channel of BUSINESS_CHANNELS) {
+        if (!(channel in given)) continue
+        const checked = checkDestination(channel, given[channel])
+        // Every bad field at once: the form shows them as a list, and a save
+        // that fails one field at a time would take five tries to fix five.
+        if (checked.ok) next[channel] = checked.value
+        else errors.push(checked.code)
+      }
+
+      if (errors.length > 0) return reply.code(400).send({ error: 'invalid input', errors })
+      patch.destinations = next
     }
 
     if (Object.keys(patch).length === 0) return reply.code(400).send({ error: 'nothing to update' })
