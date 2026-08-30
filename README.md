@@ -1,140 +1,173 @@
-# monitiezai — MonetizeAI
+# MonetizeAI
 
-A Persian-first, mobile web app for building an AI-assisted business: a learning
-path, a coach, a tool directory, and a working sales pipeline behind a live
-node-graph board.
+یک وب‌اپ موبایل‌محور و فارسی برای ساختن کسب‌وکار با کمک هوش مصنوعی: مسیر یادگیری هفت‌سطحی، کوچ گفتگومحور، فهرست ابزارها، هفت ابزار AI که واقعاً اجرا می‌شوند، و یک بوم زنده‌ی خودکارسازی فروش که پشتش یک بک‌اند کارکننده است.
 
-Five tabs, RTL by default:
+راست‌به‌چپ به‌صورت پیش‌فرض، و هر رشته‌ی قابل‌مشاهده دوزبانه (فارسی/انگلیسی) است.
 
-| Tab | Route | What it does |
-| --- | --- | --- |
-| داشبورد | `#/` | Editable income headline, progress across the 23 stages, the eight AI tools, the coach |
-| مراحل | `#/levels` | The seven levels; marking a stage done persists and moves the overall bar |
-| پروفایل | `#/profile` | Profile (editable), business, subscription, support, security |
-| AI کوچ | `#/ai-coach` | Chat with the coach, with ready prompts |
-| ابزارها | `#/tools` | The eight AI tools, two courses, and 44 external tools with search and category filters |
+---
 
-Each AI tool opens at `#/tools/:id`: a form generated from its spec, a
-structured answer, and the history of past runs. The answer says whether the
-model or the offline templates produced it.
-
-The **مدیریت فروش** tool opens the sales board at `#/sales-automation`: a lead
-arrives, is scored from its own event history, routed hot / warm / cold, walked
-through a nurture sequence, booked, checked out and paid — and a slice of that
-payment is allocated back to the channel that produced it. The canvas shows it
-as it happens, with `#/leads` and `#/inbox` beside it.
-
-## Quick start
+## شروع سریع
 
 ```bash
 npm install
-npm run seed -- --fresh   # optional: a month of sample leads to look at
-npm run dev               # API on :8787, app on :5173
+npm run seed -- --fresh   # اختیاری: یک ماه داده‌ی نمونه برای اینکه صفحه‌ها خالی نباشند
+npm run dev               # API روی :8787 و اپ روی :5173
 ```
 
-Then open <http://127.0.0.1:5173/>.
+بعد `http://127.0.0.1:5173/` را باز کنید.
 
-**No credentials are required.** With an empty environment the whole funnel
-runs: channels record their outbound messages instead of delivering them, copy
-comes from templates instead of a model, and checkout is a local page that moves
-no money. `GET /api/health` always reports which half is real.
+**هیچ کلیدی لازم نیست.** با `.env` خالی کل قیف کار می‌کند: کانال‌هایی که کلید ندارند پیام را ثبت می‌کنند و نمی‌فرستند، متن‌ها به‌جای مدل از قالب می‌آید، و پرداخت یک صفحه‌ی محلی است که هیچ پولی جابه‌جا نمی‌کند. `GET /api/health` همیشه می‌گوید کدام نیمه واقعی است.
 
-## What is actually real
+---
 
-| Piece | State |
+## نگاهی به اپ
+
+| داشبورد | مراحل | پروفایل |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/dashboard.png" width="240"> | <img src="docs/screenshots/levels.png" width="240"> | <img src="docs/screenshots/profile.png" width="240"> |
+| تیتر درآمد قابل ویرایش، نوار پیشرفت ۲۳ مرحله، هشت ابزار AI و کارت کوچ | هفت سطح با نوار پیشرفت هرکدام؛ «ثبت یک مرحله» در دیتابیس می‌ماند | پروفایل قابل ویرایش، بیزینس، اشتراک، پشتیبانی و امنیت |
+
+| AI کوچ | ابزارها | ابزارهای خارجی |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/coach.png" width="240"> | <img src="docs/screenshots/tools.png" width="240"> | <img src="docs/screenshots/tools-external.png" width="240"> |
+| گفتگو با تاریخچه‌ی ذخیره‌شده و پرامپت‌های آماده | هشت ابزار AI، دو دوره، و ۴۴ ابزار خارجی | جستجو و فیلتر دسته‌بندی روی فهرست ابزارها |
+
+| اجرای یک ابزار | ورود (وقتی رمز ست شده باشد) |
+| :---: | :---: |
+| <img src="docs/screenshots/tool-run.png" width="240"> | <img src="docs/screenshots/login.png" width="240"> |
+| فرم از روی spec ساخته می‌شود و پاسخ ساختاریافته برمی‌گردد | احراز هویت opt-in است؛ بدون رمز اصلاً نمایش داده نمی‌شود |
+
+### بوم خودکارسازی فروش
+
+ابزار «مدیریت فروش» این بوم را باز می‌کند: لید وارد می‌شود، از روی تاریخچه‌ی رویدادهای خودش امتیاز می‌گیرد، به مسیر داغ/گرم/سرد می‌رود، سکانس نرچر را طی می‌کند، جلسه می‌گیرد، پرداخت می‌کند — و بخشی از همان پرداخت به کانالی که لید را ساخته برمی‌گردد. بوم این‌ها را زنده نشان می‌دهد.
+
+<img src="docs/screenshots/board.png" width="800">
+
+| لیدها | صندوق پیام |
+| :---: | :---: |
+| <img src="docs/screenshots/leads.png" width="380"> | <img src="docs/screenshots/inbox.png" width="380"> |
+| جدول لیدها با فیلتر مسیر و کشوی تایم‌لاین رویدادها | گفتگوها با امکان پاسخ دستی از همان کانال |
+
+---
+
+## پنج تب
+
+| تب | مسیر | چه کاری می‌کند |
+| --- | --- | --- |
+| داشبورد | `#/` | تیتر درآمد قابل ویرایش، پیشرفت ۲۳ مرحله، هشت ابزار AI، کوچ |
+| مراحل | `#/levels` | هفت سطح؛ ثبت هر مرحله ذخیره می‌شود و نوار کلی را جلو می‌برد |
+| پروفایل | `#/profile` | پروفایل (قابل ویرایش)، بیزینس، اشتراک، پشتیبانی، امنیت |
+| AI کوچ | `#/ai-coach` | چت با کوچ، با تاریخچه و پرامپت‌های آماده |
+| ابزارها | `#/tools` | هشت ابزار AI، دو دوره، ۴۴ ابزار خارجی با جستجو و فیلتر |
+
+هر ابزار AI روی `#/tools/:id` باز می‌شود: فرمی که از spec خودش ساخته شده، یک پاسخ ساختاریافته، و تاریخچه‌ی اجراهای قبلی. پاسخ خودش می‌گوید مدل تولیدش کرده یا قالب آفلاین.
+
+---
+
+## چه چیزی واقعی است و چه چیزی نه
+
+این جدول باید صادق بماند. اگر چیزی از ستون راست ساخته شد، در همان کامیت جابه‌جا شود.
+
+| بخش | وضعیت |
 | --- | --- |
-| Lead capture, scoring, routing, nurture sequences, CRM stages | real, runs locally |
-| Telegram | **real delivery** with `TELEGRAM_BOT_TOKEN` — send and receive |
-| Instagram / LinkedIn / YouTube / Website | signed webhook in, messages recorded not delivered (these need a business account and platform review) |
-| Outreach copy and next-best-action | templates by default; Claude with `ANTHROPIC_API_KEY` |
-| Checkout and payments | local mock — **no gateway, no money** |
-| ElevenLabs / Higgsfield / Vapi | not wired; the canvas counts content rows the seed creates |
-| Profile, level progress, coach history | real, stored in the database |
-| The two courses, subscription management, privacy settings, sign-out | not built here — they carry a **به‌زودی** badge rather than pretending |
+| دریافت لید، امتیازدهی، روتینگ، نرچر، مراحل CRM، حلقه‌ی رشد | واقعی، محلی اجرا می‌شود |
+| پروفایل، پیشرفت سطح‌ها، تاریخچه‌ی کوچ | واقعی، در دیتابیس |
+| تلگرام | **ارسال و دریافت واقعی** با `TELEGRAM_BOT_TOKEN` |
+| اینستاگرام / لینکدین / یوتیوب / وب‌سایت | وبهوک امضاشده برای ورودی؛ خروجی ثبت می‌شود ولی ارسال نمی‌شود (این‌ها اکانت بیزنس و تأیید پلتفرم می‌خواهند) |
+| کوچ، متن پیگیری و هفت ابزار AI | با `ANTHROPIC_API_KEY` مدل Claude، وگرنه قالب‌های آفلاین |
+| احراز هویت | واقعی و **opt-in** — پایین را ببینید |
+| چک‌آوت و پرداخت | ماکت محلی — **نه درگاهی، نه پولی** |
+| ElevenLabs / Higgsfield / Vapi | وصل نشده؛ بوم فقط ردیف‌های محتوایی را می‌شمارد که seed ساخته |
+| دو دوره، مدیریت اشتراک، تنظیمات حریم خصوصی، خروج از حساب | ساخته نشده — به‌جای تظاهر، بج **به‌زودی** دارند |
 
-Copy `.env.example` to `.env` to turn any of these on. `.env` is gitignored;
-never commit a token.
+برای روشن‌کردن هرکدام، `.env.example` را به `.env` کپی کنید. `.env` در `.gitignore` است؛ هیچ توکنی نباید کامیت شود.
 
-## Turning Telegram on
+---
 
-1. Create a bot with [@BotFather](https://t.me/botfather) and copy the token.
-2. Put `TELEGRAM_BOT_TOKEN` and a fixed `TELEGRAM_WEBHOOK_SECRET` in `.env`
-   (`node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"`).
-3. Expose the API on a public URL and set `PUBLIC_URL` to it.
-4. `npm run telegram:register`.
+## روشن‌کردن تلگرام
 
-Send `/start` to the bot: the lead shows up on `/#/leads`, the first nurture
-message really arrives, and replying to it re-scores the lead.
+۱. با [@BotFather](https://t.me/botfather) یک بات بسازید و توکنش را بردارید.
+۲. `TELEGRAM_BOT_TOKEN` و یک `TELEGRAM_WEBHOOK_SECRET` ثابت را در `.env` بگذارید:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+   ```
+۳. API را روی یک آدرس عمومی در دسترس قرار دهید و `PUBLIC_URL` را همان بگذارید.
+۴. `npm run telegram:register`
 
-## How it is put together
+حالا به بات `/start` بدهید: لید در `#/leads` ظاهر می‌شود، اولین پیام سکانس واقعاً می‌رسد، و پاسخ‌دادن به آن لید را دوباره امتیازدهی می‌کند.
+
+---
+
+## احراز هویت
+
+پیش‌فرض خاموش است. اگر `APP_PASSWORD` (یا `APP_PASSWORD_HASH` از پیش محاسبه‌شده) را ست کنید، API همه‌ی مسیرها را می‌بندد به‌جز `GET /api/health`، `/api/auth/*`، وبهوک‌ها و صفحه‌ی چک‌آوت — و اپ صفحه‌ی ورود نشان می‌دهد.
+
+رمز با `scrypt` و یک salt تصادفی بررسی می‌شود، توکن نشست با HMAC امضا و منقضی می‌شود، و در کوکی `HttpOnly; SameSite=Lax` سفر می‌کند. پنج تلاش ناموفق از یک آدرس، پانزده دقیقه قفل می‌آورد.
+
+نشست‌ها در حافظه‌اند، پس ری‌استارت سرور همه را خارج می‌کند. این عمدی است — نه تغییر schema، نه دسترسی دیتابیس از لایه‌ی احراز هویت — ولی قبل از اتکا به آن بدانیدش.
+
+---
+
+## معماری
 
 ```
 server/
-  domain/       pure, tested logic: scoring · routing · sequences · levels · pipeline-view
-  db/           node:sqlite schema and every query
-  adapters/     one interface per external service, real or fallback
-  routes/       app (profile · progress · coach) · leads · pipeline · SSE · webhooks · checkout
-  service.ts    the orchestration: capture → score → route → nurture → sale → loop
+  domain/     توابع خالص و بدون I/O — امتیازدهی، روتینگ، سکانس‌ها، سطح‌ها، نمای بوم
+  db/         schema.sql و queries.ts — هر SQL پروژه اینجاست
+  adapters/   یک interface برای هر سرویس بیرونی، با نسخه‌ی واقعی و fallback
+  tools/      اجراکننده‌ی هفت ابزار AI و قالب‌های آفلاینشان
+  routes/     لایه‌ی نازک HTTP
+  auth.ts     احراز هویت opt-in
+  service.ts  ارکستراسیون: دریافت ← امتیاز ← روت ← نرچر ← فروش ← حلقه
+shared/
+  aiToolSpecs.ts   قرارداد ابزارها؛ سرور و کلاینت هر دو همین را import می‌کنند
 src/
-  data/         tools.ts · levels.ts · pipeline.ts — every list and label, bilingual
-  components/   AppShell · TabBar · PageBanner · Card · Icon — shared by every page
-  api/          fetch client, app-state hook, live metrics + SSE hook
-  pages/        dashboard · levels · profile · ai-coach · tools · board · leads · inbox
+  data/       tools.ts · levels.ts · pipeline.ts — هر فهرست و برچسب، دوزبانه
+  components/ AppShell · TabBar · PageBanner · Card · Icon
+  api/        کلاینت fetch و هوک‌ها؛ هیچ کامپوننتی مستقیم fetch نمی‌زند
+  pages/      یک فایل برای هر مسیر
 ```
 
-Every visible string carries both `fa` and `en`, and the whole app flips
-direction with the language switch on the board's header.
+**امتیازدهی** (`server/domain/scoring.ts`) از جدول append-only رویدادها خوانده می‌شود: وزن کانال کف را می‌سازد، هر رویداد امتیاز اضافه می‌کند، و سهم هر رویداد بعد از ده روز نصف می‌شود تا یک انفجار قدیمی لید را داغ نگه ندارد. هیچ‌چیز جلوتر از لاگ ذخیره نمی‌شود، پس امتیاز همیشه قابل بازتولید است.
 
-**Scoring** (`server/domain/scoring.ts`) reads the append-only `lead_events`
-table: channel intent sets a floor, each event adds weight, and every
-contribution halves after ten days so an old burst never keeps a lead hot.
-Nothing is stored ahead of the log, so a score can always be re-derived.
+**روتینگ** (`server/domain/routing.ts`) این است: داغ `≥ ۸۰`، گرم `≥ ۵۵`، و سرد پایین‌تر. تخته‌ی مرجع سرد را `<۴۵` نوشته بود که بازه‌ی ۴۵ تا ۵۴ را بی‌صاحب می‌گذاشت؛ برچسب یال حالا `cold <55` است تا تصویر و کد یکی باشند.
 
-**Routing** (`server/domain/routing.ts`) is `hot ≥ 80`, `warm ≥ 55`, cold below.
-The reference board labelled cold as `<45`, which left 45–54 unassigned; the
-edge label says `cold <55` so the picture and the code agree.
+**بوم زنده.** `src/data/pipeline.ts` چیدمان، متن و یک عدد fallback برای هر خانه دارد. `GET /api/pipeline` همان خانه‌ها را با کلید `<nodeId>.<slot>` برمی‌گرداند و `GET /api/stream` هر رویداد را با یالی که رویش حرکت می‌کند پوش می‌کند، پس یک لید واقعی یک پالس واقعی می‌زند. اگر API خاموش باشد بوم با اعداد fallback بالا می‌آید و کار می‌کند.
 
-**Live canvas.** `src/data/pipeline.ts` holds the layout, the bilingual copy and
-a fallback number for every slot. `GET /api/pipeline` returns the same slots
-keyed `<nodeId>.<slot>`, and `GET /api/stream` pushes each domain event with the
-edge it travels along, so a real lead fires a real pulse. With the API down the
-board falls back to the seeded numbers and keeps working.
+**آداپتورها.** `server/adapters/registry.ts` وقتی کلید هست نسخه‌ی واقعی و وگرنه fallback را برمی‌دارد، پس هیچ مسیر کدی مشروط به داشتن کلید نیست.
 
-**Adapters.** `server/adapters/registry.ts` picks the real implementation when
-credentials exist and a working fallback otherwise, so no code path is
-conditional on having a key.
+---
 
-## Commands
+## دستورها
 
-| Command | What it does |
+| دستور | کار |
 | --- | --- |
-| `npm run dev` | API and dashboard together |
-| `npm run dev:api` / `npm run dev:web` | either half on its own |
-| `npm test` | domain tests (`node --test`) |
-| `npm run e2e` | drives one lead capture → paid → reinvested on a throwaway database |
-| `npm run seed -- --fresh` | rebuild the sample database |
-| `npm run build` | typecheck and production bundle |
+| `npm run dev` | API و اپ با هم |
+| `npm run dev:api` / `npm run dev:web` | هرکدام جدا |
+| `npm run typecheck` | `tsc -b` روی هر سه پروژه‌ی tsconfig |
+| `npm run build` | تایپ‌چک و باندل پروداکشن |
+| `npm test` | تست‌های دامنه و مسیرها (`node --test`) |
+| `npm run e2e` | یک لید از دریافت تا بودجه‌ی بازگشتی، روی دیتابیس یک‌بارمصرف |
+| `npm run seed -- --fresh` | ساخت دوباره‌ی دیتابیس نمونه |
+| `npm run telegram:register` | ست‌کردن وبهوک تلگرام |
 
-## Authentication
+---
 
-Off by default. Set `APP_PASSWORD` (or a pre-computed `APP_PASSWORD_HASH`) and
-the API guards every route except `GET /api/health`, `/api/auth/*`, the webhooks
-and the checkout page, while the app shows a login screen. The password is
-verified with `scrypt` against a random salt, the session token is HMAC-signed
-with an expiry, and it travels in an `HttpOnly; SameSite=Lax` cookie. Five failed
-attempts from one address earn a fifteen-minute lockout.
+## توسعه
 
-Sessions live in memory, so a restart signs everyone out. That is deliberate —
-no schema change, no database access from the auth layer — but it is worth
-knowing before you rely on it.
+`CLAUDE.md` قوانین پروژه است — یک منبع حقیقت برای هر فهرست، هر رشته دوزبانه، RTL با logical properties، هر سرویس بیرونی پشت آداپتور، و «هیچ فیچری جعل نشود». قبل از تغییر بخوانیدش.
 
-## Before deploying this
+زیر `.claude/skills/` پنج اسکیل مخصوص پروژه هست: `verify` (حلقه‌ی کامل تأیید)، `add-tool`، `add-adapter`، `add-page` و `shoot`.
 
-Set a password. Then two things still need attention:
-`POST /api/webhooks/payment` carries neither a secret path nor an HMAC, so
-anyone who can reach it can claim a mock payment happened; and the API sends
-`access-control-allow-origin: *` without credentials, so cookie auth only works
-same-origin.
+---
 
-Built with Vite, React, TypeScript, Tailwind CSS, `@xyflow/react`, Fastify and
-`node:sqlite`.
+## قبل از دیپلوی
+
+اول یک رمز ست کنید. بعد دو چیز هنوز باز است و باید بدانید:
+
+- `POST /api/webhooks/payment` نه مسیر مخفی دارد نه HMAC، پس هرکسی که به آن برسد می‌تواند ادعا کند پرداختی انجام شده.
+- API هدر `access-control-allow-origin: *` بدون credentials می‌فرستد، پس احراز هویت کوکی‌محور فقط same-origin کار می‌کند.
+
+---
+
+ساخته‌شده با Vite، React، TypeScript، Tailwind CSS، `@xyflow/react`، Fastify و `node:sqlite`.
