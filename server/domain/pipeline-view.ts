@@ -9,6 +9,8 @@ import { CHANNELS } from '../types.ts'
 export type PipelineFacts = {
   leadsByChannel: Record<Channel, number>
   touchesByChannel: Record<Channel, number>
+  /** Pieces this channel actually put out — delivered or recorded. */
+  publishedByChannel: Record<Channel, number>
   totalLeads: number
   identified: number
   byRoute: Record<Route, number>
@@ -35,6 +37,7 @@ export type PipelineFacts = {
 export const emptyFacts = (): PipelineFacts => ({
   leadsByChannel: { instagram: 0, telegram: 0, linkedin: 0, youtube: 0, website: 0 },
   touchesByChannel: { instagram: 0, telegram: 0, linkedin: 0, youtube: 0, website: 0 },
+  publishedByChannel: { instagram: 0, telegram: 0, linkedin: 0, youtube: 0, website: 0 },
   totalLeads: 0,
   identified: 0,
   byRoute: { hot: 0, warm: 0, cold: 0 },
@@ -70,7 +73,10 @@ export function buildMetrics(facts: PipelineFacts): MetricMap {
   for (const channel of CHANNELS) {
     metrics[`${channel}.badge`] = facts.leadsByChannel[channel]
     metrics[`${channel}.stat`] = facts.touchesByChannel[channel]
-    metrics[`${channel}.stat2`] = facts.touchesByChannel[channel] * 9 + facts.leadsByChannel[channel]
+    // Reach used to be invented here as touches × 9. Nothing in this app can
+    // measure a platform's impressions, so the second line counts what the
+    // channel actually put out instead.
+    metrics[`${channel}.stat2`] = facts.publishedByChannel[channel]
   }
 
   metrics['elevenlabs.stat'] = facts.voiceovers

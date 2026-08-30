@@ -120,7 +120,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'INSTAGRAM', fa: 'INSTAGRAM' },
     title: { en: 'Reels, stories & DMs', fa: 'ریلز، استوری و دایرکت' },
     stat: { text: { en: 'intent signals {n}', fa: 'سیگنال خرید {n}' }, value: 826 },
-    stat2: { text: { en: '{n} reach', fa: 'بازدید {n}' }, value: 76_100 },
+    stat2: { text: { en: '{n} published', fa: '{n} منتشرشده' }, value: 18 },
   },
   {
     id: 'telegram',
@@ -131,7 +131,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'TELEGRAM', fa: 'TELEGRAM' },
     title: { en: 'Channel & direct chat', fa: 'کانال و گفتگوی مستقیم' },
     stat: { text: { en: 'clicks and replies {n}', fa: 'کلیک و پاسخ {n}' }, value: 419 },
-    stat2: { text: { en: '{n} reach', fa: 'بازدید {n}' }, value: 26_300 },
+    stat2: { text: { en: '{n} published', fa: '{n} منتشرشده' }, value: 14 },
   },
   {
     id: 'linkedin',
@@ -142,7 +142,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'LINKEDIN', fa: 'LINKEDIN' },
     title: { en: 'B2B expert content', fa: 'محتوای تخصصی B2B' },
     stat: { text: { en: 'professional leads {n}', fa: 'لید حرفه‌ای {n}' }, value: 238 },
-    stat2: { text: { en: '{n} reach', fa: 'بازدید {n}' }, value: 21_300 },
+    stat2: { text: { en: '{n} published', fa: '{n} منتشرشده' }, value: 11 },
   },
   {
     id: 'youtube',
@@ -153,7 +153,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'YOUTUBE', fa: 'YOUTUBE' },
     title: { en: 'Education & case studies', fa: 'آموزش و مطالعه موردی' },
     stat: { text: { en: 'touches {n}', fa: 'تعامل {n}' }, value: 54 },
-    stat2: { text: { en: '{n} views', fa: '{n} بازدید' }, value: 11_400 },
+    stat2: { text: { en: '{n} published', fa: '{n} منتشرشده' }, value: 6 },
   },
   {
     id: 'website',
@@ -164,7 +164,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'WEBSITE', fa: 'WEBSITE' },
     title: { en: 'Landing & website chat', fa: 'لندینگ و چت سایت' },
     stat: { text: { en: 'conversations {n}', fa: 'گفتگو {n}' }, value: 359 },
-    stat2: { text: { en: 'visits {n}', fa: 'بازدید {n}' }, value: 6_815 },
+    stat2: { text: { en: '{n} published', fa: '{n} منتشرشده' }, value: 9 },
   },
 
   // ── 3. capture ───────────────────────────────────────────────────────

@@ -48,3 +48,19 @@ test('every canvas node gets a badge metric', () => {
     assert.ok(`${id}.badge` in metrics, `${id}.badge is missing`)
   }
 })
+
+test("a channel's second line counts what it published, not a multiple of touches", () => {
+  const facts = emptyFacts()
+  facts.touchesByChannel.instagram = 40
+  facts.leadsByChannel.instagram = 7
+  facts.publishedByChannel.instagram = 3
+
+  const metrics = buildMetrics(facts)
+  assert.equal(metrics['instagram.badge'], 7)
+  assert.equal(metrics['instagram.stat'], 40)
+  assert.equal(metrics['instagram.stat2'], 3, 'the second line is measured, never derived from the first')
+
+  // A channel that published nothing says zero rather than a number implied by
+  // its traffic, which is the whole point of the change.
+  assert.equal(metrics['telegram.stat2'], 0)
+})

@@ -236,6 +236,8 @@ export function gatherFacts(): PipelineFacts {
     if (CHANNELS.includes(entry.source)) facts.touchesByChannel[entry.source] = Number(entry.n)
   }
 
+  facts.publishedByChannel = publishedContentByChannel()
+
   facts.totalLeads = count('SELECT COUNT(*) AS n FROM leads')
   facts.identified = count(
     `SELECT COUNT(*) AS n FROM leads WHERE COALESCE(name, '') <> '' OR COALESCE(handle, '') <> ''`,
