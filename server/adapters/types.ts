@@ -1,6 +1,9 @@
 import type { Channel, Lead, Message, Route } from '../types.ts'
 import type { TemplateKey } from '../domain/sequences.ts'
+import type { CallBrief, CallBriefInput } from '../domain/booking.ts'
 import type { AiToolSpec, ToolRunResult } from '../../shared/aiToolSpecs.ts'
+import type { BusinessProfile } from '../domain/business.ts'
+import type { ContentBrief, ContentLocale, ContentWritten } from '../domain/content.ts'
 
 /** Anything that can put a message in front of a lead. */
 export interface ChannelAdapter {
@@ -51,6 +54,36 @@ export interface AiAdapter {
   nextBestAction(input: Omit<DraftInput, 'template'>): Promise<NextBestAction>
   coach(input: CoachInput): Promise<string>
   runTool(input: ToolRunInput): Promise<ToolRunResult>
+  /** One batch of content for the factory: one piece per brief, same order. */
+  writeContent(input: ContentWriteInput): Promise<ContentWritten[]>
+  /** The opening, the two likely objections and the ask for one sales call. */
+  callBrief(input: CallBriefInput): Promise<CallBrief>
+}
+
+/** Re-exported so an adapter never imports the domain shape twice over. */
+export type { CallBrief, CallBriefInput }
+
+export type PlaceCallInput = {
+  lead: Lead
+  /** Already written, and stored, whether or not this adapter dials. */
+  brief: CallBrief
+  /** The meeting this call is about, when there is one. */
+  slotStart?: string | null
+}
+
+/**
+ * Anything that can put a voice on the phone with a lead. The default
+ * implementation does not dial at all — it hands the owner the brief and marks
+ * the call `simulated`, so the node produces real work with no paid account.
+ */
+export interface VoiceAdapter {
+  readonly name: string
+  /** False when the adapter prepares the call instead of placing it. */
+  readonly live: boolean
+  placeCall(input: PlaceCallInput): Promise<{
+    status: 'dialled' | 'simulated' | 'failed'
+    externalId?: string
+  }>
 }
 
 export interface PaymentAdapter {
@@ -61,3 +94,17 @@ export interface PaymentAdapter {
     ref: string
   }>
 }
+
+/**
+ * One pass of the content factory. The briefs already fix the channel and the
+ * kind, so a producer only writes the words — it never gets to change where a
+ * piece goes.
+ */
+export type ContentWriteInput = {
+  business: BusinessProfile
+  briefs: ContentBrief[]
+  locale: ContentLocale
+}
+
+/** Re-exported so an adapter never imports the domain shape twice over. */
+export type { ContentBrief, ContentWritten }

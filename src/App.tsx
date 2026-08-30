@@ -7,6 +7,7 @@ import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import AiCoach from './pages/AiCoach'
 import Tools from './pages/Tools'
+import Business from './pages/Business'
 import AiToolPage from './pages/AiToolPage'
 import SalesAutomation from './pages/SalesAutomation'
 import Leads from './pages/Leads'
@@ -33,6 +34,9 @@ function Gate() {
         <Route path="/ai-coach" element={<AiCoach />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/tools/:toolId" element={<AiToolPage />} />
+
+        {/* The business profile every AI feature reads. Reached from Profile. */}
+        <Route path="/business" element={<Business />} />
 
         {/* The sales-automation tool, reached from the tools grid. */}
         <Route path="/sales-automation" element={<SalesAutomation />} />

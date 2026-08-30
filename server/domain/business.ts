@@ -1,48 +1,33 @@
-import type { Channel } from '../types.ts'
+import { CHANNELS, type Channel } from '../types.ts'
+import {
+  BUSINESS_CHANNELS,
+  isUsable,
+  type BusinessChannel,
+  type BusinessProfile,
+  type Tone,
+} from '../../shared/business.ts'
 
-/**
- * What the owner told us about their business. Every generated message, post,
- * call brief and tool answer reads this, so the output is about their offer
- * instead of a generic one.
- */
-export type BusinessProfile = {
-  name: string
-  whatWeSell: string
-  audience: string
-  tone: Tone
-  priceToman: number
-  channels: Channel[]
-  ctaUrl: string | null
-  notes: string | null
-}
+// The contract itself lives in shared/, so the form and the store cannot drift.
+// Re-exported here because every server module already reaches for it by this
+// path, and because `businessBrief` below — prose for the model, not for the
+// user — belongs on the server side of the boundary.
+export {
+  BUSINESS_CHANNELS,
+  BUSINESS_LIMITS,
+  TONES,
+  emptyBusiness,
+  isUsable,
+  missingFields,
+} from '../../shared/business.ts'
+export type { BusinessChannel, BusinessProfile, Tone } from '../../shared/business.ts'
 
-export const TONES = ['friendly', 'expert', 'direct', 'playful'] as const
-export type Tone = (typeof TONES)[number]
-
-export const emptyBusiness = (): BusinessProfile => ({
-  name: '',
-  whatWeSell: '',
-  audience: '',
-  tone: 'friendly',
-  priceToman: 0,
-  channels: [],
-  ctaUrl: null,
-  notes: null,
-})
-
-/** A profile is usable once it says what is sold and to whom. */
-export function isUsable(profile: BusinessProfile): boolean {
-  return profile.whatWeSell.trim().length > 0 && profile.audience.trim().length > 0
-}
-
-/** Which required fields are still blank, as `field:code` for the client. */
-export function missingFields(profile: BusinessProfile): string[] {
-  const missing: string[] = []
-  if (!profile.name.trim()) missing.push('name:required')
-  if (!profile.whatWeSell.trim()) missing.push('whatWeSell:required')
-  if (!profile.audience.trim()) missing.push('audience:required')
-  return missing
-}
+// The shared list is written without importing server vocabulary, so these two
+// assignments are what fail the build if either side gains a channel the other
+// does not have.
+const _sharedFitsServer: readonly Channel[] = BUSINESS_CHANNELS
+const _serverFitsShared: readonly BusinessChannel[] = CHANNELS
+void _sharedFitsServer
+void _serverFitsShared
 
 const TONE_HINT: Record<Tone, string> = {
   friendly: 'warm and plain-spoken, like a helpful peer',

@@ -28,8 +28,9 @@ const COPY = {
 
   business: { fa: 'بیزینس', en: 'Business' },
   businessTitle: { fa: 'پروفایل بیزینسی من', en: 'My business profile' },
-  businessSub: { fa: 'نقشه ذهنی توسعه بیزینس', en: 'Business development mind map' },
-  enterProfile: { fa: 'ورود به پروفایل', en: 'Open profile' },
+  businessSub: { fa: 'چیزی که هر متن تولیدشده بر پایه‌ی آن نوشته می‌شود', en: 'What every generated word is based on' },
+  enterProfile: { fa: 'ویرایش پروفایل بیزینسی', en: 'Edit business profile' },
+  openBoard: { fa: 'بوم فروش', en: 'Sales board' },
 
   subscription: { fa: 'اشتراک', en: 'Subscription' },
   subscriptionTitle: { fa: 'اشتراک بدون اشتراک', en: 'No active subscription' },
@@ -174,8 +175,14 @@ export default function Profile() {
           <Row label={t(COPY.status)} value={t(COPY.active)} />
         </div>
         <div className="mt-3 flex items-center gap-2">
-          <Link to="/sales-automation" className="flex-1">
+          <Link to="/business" className="flex-1">
             <PrimaryButton>{t(COPY.enterProfile)}</PrimaryButton>
+          </Link>
+          <Link
+            to="/sales-automation"
+            className="flex flex-1 items-center justify-center rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
+          >
+            {t(COPY.openBoard)}
           </Link>
         </div>
       </Card>

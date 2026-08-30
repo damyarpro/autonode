@@ -1,6 +1,16 @@
 import type { TemplateKey } from '../../domain/sequences.ts'
+import { composeBrief } from '../../domain/booking.ts'
+import type { CallBrief, CallBriefInput } from '../types.ts'
 import { templateRun } from '../../tools/templates.ts'
-import type { AiAdapter, CoachInput, DraftInput, NextBestAction, ToolRunInput } from '../types.ts'
+import { templateContent } from '../../domain/content.ts'
+import type {
+  AiAdapter,
+  CoachInput,
+  ContentWriteInput,
+  DraftInput,
+  NextBestAction,
+  ToolRunInput,
+} from '../types.ts'
 
 type Copy = { fa: string; en: string }
 
@@ -112,6 +122,15 @@ export const templateAi: AiAdapter = {
 
   async runTool({ spec, inputs, locale }: ToolRunInput) {
     return templateRun(spec, inputs, locale)
+  },
+
+  /** Real copy, built from the owner's own profile words. Never filler. */
+  async writeContent({ business, briefs, locale }: ContentWriteInput) {
+    return templateContent(business, briefs, locale)
+  },
+
+  async callBrief(input: CallBriefInput): Promise<CallBrief> {
+    return composeBrief(input)
   },
 
   async nextBestAction({ lead }): Promise<NextBestAction> {

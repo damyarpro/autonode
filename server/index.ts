@@ -17,6 +17,9 @@ import checkout from './routes/checkout.ts'
 import appRoutes from './routes/app.ts'
 import authRoutes from './routes/auth.ts'
 import toolRoutes from './routes/tools.ts'
+import contentRoutes from './routes/content.ts'
+import callRoutes from './routes/calls.ts'
+import mediaRoutes from './routes/media.ts'
 
 export async function buildServer() {
   const app = Fastify({ logger: false })
@@ -61,6 +64,9 @@ export async function buildServer() {
   await app.register(checkout)
   await app.register(appRoutes)
   await app.register(toolRoutes)
+  await app.register(contentRoutes)
+  await app.register(callRoutes)
+  await app.register(mediaRoutes)
 
   await serveBuiltApp(app)
   return app
