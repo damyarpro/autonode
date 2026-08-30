@@ -6,6 +6,7 @@ import { Card, CardHead, PrimaryButton, ProgressBar } from '../components/Card'
 import Chip from '../components/Chip'
 import { Icon } from '../components/Icon'
 import { useToolRun } from '../api/useToolRun'
+import { explainCode } from '../i18n/errors'
 import { useI18n } from '../i18n/I18nProvider'
 import {
   specById,
@@ -22,30 +23,9 @@ import {
  * spec — can say them in the reader's language. Rendering the raw codes would
  * put untranslated text in front of the user.
  */
-function explainError(code: string, spec: AiToolSpec, digits: (value: string) => string): Bi {
-  const [fieldId, rule, arg] = code.split(':')
-  const label = spec.fields.find((field) => field.id === fieldId)?.label ?? { fa: fieldId, en: fieldId }
-
-  switch (rule) {
-    case 'required':
-      return { fa: `«${label.fa}» را پر کن.`, en: `“${label.en}” is required.` }
-    case 'too_long':
-      return {
-        fa: `«${label.fa}» از ${digits(arg ?? '')} نویسه بلندتر است.`,
-        en: `“${label.en}” is longer than ${arg ?? ''} characters.`,
-      }
-    case 'not_an_option':
-      return {
-        fa: `مقدار انتخاب‌شده برای «${label.fa}» معتبر نیست.`,
-        en: `That is not a valid option for “${label.en}”.`,
-      }
-    case 'not_text':
-      return { fa: `«${label.fa}» باید متن باشد.`, en: `“${label.en}” must be text.` }
-    default:
-      // An unknown code is still better shown than swallowed.
-      return { fa: code, en: code }
-  }
-}
+/** The tool's own field labels beat the generic dictionary in `explainCode`. */
+const explainError = (code: string, spec: AiToolSpec, digits: (value: string) => string): Bi =>
+  explainCode(code, spec.fields.find((field) => field.id === code.split(':')[0])?.label, digits)
 
 const COPY = {
   notFoundTitle: { fa: 'ابزار پیدا نشد', en: 'Tool not found' },
