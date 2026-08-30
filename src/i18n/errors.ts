@@ -35,6 +35,14 @@ const FIELD_LABELS: Record<string, Bi> = {
   voice: { fa: 'صدا', en: 'Voice' },
   style: { fa: 'سبک', en: 'Style' },
 
+  // publishing — a channel that refused a piece names itself as the field
+  target: { fa: 'مقصد انتشار', en: 'Publishing target' },
+  instagram: { fa: 'اینستاگرام', en: 'Instagram' },
+  telegram: { fa: 'تلگرام', en: 'Telegram' },
+  linkedin: { fa: 'لینکدین', en: 'LinkedIn' },
+  youtube: { fa: 'یوتیوب', en: 'YouTube' },
+  website: { fa: 'وب‌سایت', en: 'Website' },
+
   // calls
   leadId: { fa: 'شناسه‌ی لید', en: 'Lead id' },
   slotStart: { fa: 'زمان جلسه', en: 'Meeting time' },
@@ -88,6 +96,12 @@ export function explainCode(code: string, label?: Bi, digits: (value: string) =>
       return {
         fa: 'این زمان بیرون از ساعت‌های کاری است.',
         en: 'That time falls outside your working hours.',
+      }
+    // Publishing answers, where the field id is the channel that refused.
+    case 'rejected':
+      return {
+        fa: `«${name.fa}» این تکه را نپذیرفت.`,
+        en: `“${name.en}” rejected this piece.`,
       }
     case 'unknown_lead':
       return { fa: 'این لید پیدا نشد.', en: 'No such lead.' }

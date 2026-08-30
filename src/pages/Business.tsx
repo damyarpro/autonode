@@ -15,6 +15,7 @@ import {
   type BusinessProfile,
   type BusinessTone,
 } from '../api/useBusiness'
+import { toLatinDigits } from '../i18n/format'
 import { useI18n } from '../i18n/I18nProvider'
 import type { Bi } from '../data/types'
 
@@ -212,12 +213,6 @@ const formOf = (business: BusinessProfile): Form => ({
 })
 
 /** Persian and Arabic keyboards produce their own digits; the API wants ASCII. */
-const toLatinDigits = (input: string) =>
-  input.replace(/[۰-۹٠-٩]/g, (ch) => {
-    const fa = '۰۱۲۳۴۵۶۷۸۹'.indexOf(ch)
-    return String(fa >= 0 ? fa : '٠١٢٣٤٥٦٧٨٩'.indexOf(ch))
-  })
-
 const REQUIRED_TOTAL = 3
 
 export default function Business() {

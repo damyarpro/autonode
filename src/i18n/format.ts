@@ -11,6 +11,19 @@ export function toFaDigits(input: string): string {
   })
 }
 
+const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+
+/**
+ * Persian or Arabic digits → Latin. The inverse of `toFaDigits`, for the number
+ * fields: a Persian keyboard types ۴۹۰۰۰۰۰ and the API wants 4900000.
+ */
+export function toLatinDigits(input: string): string {
+  return input.replace(/[۰-۹٠-٩]/g, (ch) => {
+    const fa = FA_DIGITS.indexOf(ch)
+    return String(fa >= 0 ? fa : AR_DIGITS.indexOf(ch))
+  })
+}
+
 /**
  * Fixed display rate for showing Toman amounts in English. It is a presentation
  * constant, not a live FX quote — the reference board used the same one.
