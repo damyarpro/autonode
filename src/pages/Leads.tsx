@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AppHeader from '../components/AppHeader'
+import AppShell from '../components/AppShell'
 import Chip from '../components/Chip'
 import { NodeIcon } from '../components/icons'
 import { getJson, postJson, type ApiEvent, type ApiLead, type ApiMessage } from '../api/client'
@@ -94,7 +95,7 @@ export default function Leads() {
   const rows = useMemo(() => leads, [leads])
 
   return (
-    <div className="flex h-full flex-col bg-canvas">
+    <AppShell flush>
       <AppHeader connected={online} />
 
       <div className="flex flex-wrap items-center gap-2 border-b border-hairline bg-panel/50 px-5 py-2.5">
@@ -229,6 +230,6 @@ export default function Leads() {
         </aside>
       )}
       </div>
-    </div>
+    </AppShell>
   )
 }

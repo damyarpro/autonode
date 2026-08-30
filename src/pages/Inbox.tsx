@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import AppHeader from '../components/AppHeader'
+import AppShell from '../components/AppShell'
 import Chip from '../components/Chip'
 import { NodeIcon } from '../components/icons'
 import { getJson, postJson, type ApiConversation, type ApiLead, type ApiMessage } from '../api/client'
@@ -68,7 +69,7 @@ export default function Inbox() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-canvas">
+    <AppShell flush>
       <AppHeader connected={online} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(240px,320px)_1fr]">
@@ -146,6 +147,6 @@ export default function Inbox() {
           )}
         </section>
       </div>
-    </div>
+    </AppShell>
   )
 }

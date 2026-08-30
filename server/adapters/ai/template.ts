@@ -1,5 +1,5 @@
 import type { TemplateKey } from '../../domain/sequences.ts'
-import type { AiAdapter, DraftInput, NextBestAction } from '../types.ts'
+import type { AiAdapter, CoachInput, DraftInput, NextBestAction } from '../types.ts'
 
 type Copy = { fa: string; en: string }
 
@@ -43,6 +43,46 @@ const TEMPLATES: Record<TemplateKey, Copy> = {
   },
 }
 
+/**
+ * Keyword-matched coaching answers. Deliberately plain — this is the offline
+ * fallback, and it says something useful rather than pretending to be a model.
+ */
+const COACH_RULES: { match: RegExp; fa: string; en: string }[] = [
+  {
+    match: /ایده|idea/i,
+    fa: 'برای انتخاب ایده از سه فیلتر رد شو: چیزی که بلدی، چیزی که کسی حاضر است بابتش پول بدهد، و چیزی که می‌توانی در دو هفته نسخه‌ی اولش را بسازی. هر ایده‌ای که هر سه را رد کند، حذف. از بین باقی‌مانده‌ها آن را بردار که سریع‌ترین بازخورد را می‌دهد.',
+    en: 'Run every idea through three filters: something you can do, something someone will pay for, and something you can ship a first version of in two weeks. Drop whatever fails any of them, then take the one that gives you feedback fastest.',
+  },
+  {
+    match: /قیمت|pricing|price|چند بفروشم/i,
+    fa: 'قیمت را از هزینه‌ات حساب نکن، از نتیجه‌ای که برای مشتری می‌سازی. اولین قیمت را طوری بگذار که سه «بله» پشت سر هم بگیری؛ اگر گرفتی یعنی ارزان است و باید بالا ببری.',
+    en: 'Price from the outcome you create, not your costs. Set the first price so you get three yeses in a row — if you do, it is too cheap and should go up.',
+  },
+  {
+    match: /مشتری|customer|lead|لید/i,
+    fa: 'قبل از تبلیغات، ده مکالمه‌ی مستقیم بگیر. جایی که مخاطبت الان هست برو، کمک واقعی بکن و بعد پیشنهاد بده. ده مشتری اول با دست به دست می‌آید، نه با بودجه.',
+    en: 'Before any ads, get ten direct conversations. Go where your audience already is, help for real, then offer. The first ten customers come by hand, not by budget.',
+  },
+  {
+    match: /محتوا|content|پیج|instagram|اینستا/i,
+    fa: 'هر محتوا باید یکی از این سه کار را بکند: مشکل را نشان بدهد، اثبات کند که راه‌حل کار می‌کند، یا پیشنهاد بدهد. اگر هیچ‌کدام نیست، منتشرش نکن.',
+    en: 'Every piece of content should do one of three things: show the problem, prove the solution works, or make the offer. If it does none, do not publish it.',
+  },
+  {
+    match: /اتوماسیون|خودکار|automat/i,
+    fa: 'اول کاری را خودکار کن که هفته‌ای بیش از یک ساعت از تو می‌گیرد و هر بار دقیقاً یک‌شکل انجام می‌شود. پیگیری لید و ارسال پیام اول معمولاً اولین گزینه‌اند.',
+    en: 'Automate the task that eats more than an hour a week and runs identically every time. Lead follow-up and the first outbound message are usually first.',
+  },
+  {
+    match: /.*/,
+    fa: 'سؤالت را یک پله مشخص‌تر بپرس تا جواب کاربردی‌تری بدهم: روی کدام سطح گیر کرده‌ای و دقیقاً چه چیزی جلو نمی‌رود؟',
+    en: 'Ask one level more specifically and I can be more useful: which level are you stuck on, and what exactly is not moving?',
+  },
+]
+
+/** Persian digits, so the coach's numbers match the rest of its sentence. */
+const fa = (value: number) => String(value).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
+
 const fill = (copy: string, name: string | null) => copy.replace(/\{name\}/g, name?.trim() || 'دوست من')
 
 /**
@@ -56,6 +96,17 @@ export const templateAi: AiAdapter = {
   async draft({ lead, template }: DraftInput) {
     const copy = TEMPLATES[template]
     return fill(lead.locale === 'en' ? copy.en : copy.fa, lead.name)
+  },
+
+  async coach({ messages, locale, context }: CoachInput) {
+    const last = messages.filter((turn) => turn.role === 'user').at(-1)?.content ?? ''
+    const advice = COACH_RULES.find((rule) => rule.match.test(last)) ?? COACH_RULES.at(-1)!
+    const copy = locale === 'en' ? advice.en : advice.fa
+    const where =
+      locale === 'en'
+        ? `You are on level ${context.levelId} of 7 (${context.percent}% overall).`
+        : `شما روی سطح ${fa(context.levelId)} از ۷ هستید (${fa(context.percent)}٪ کل مسیر).`
+    return `${copy}\n\n${where}`
   },
 
   async nextBestAction({ lead }): Promise<NextBestAction> {

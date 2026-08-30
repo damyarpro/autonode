@@ -1,22 +1,34 @@
-# monitiezai — sales automation
+# monitiezai — MonetizeAI
 
-A working sales pipeline behind a live node-graph dashboard. A lead arrives,
-gets scored from its own event history, is routed hot / warm / cold, walks a
-nurture sequence, books a meeting, checks out, pays — and a slice of that
-payment is allocated back to the channel that produced it. The canvas shows all
-of it as it happens.
+A Persian-first, mobile web app for building an AI-assisted business: a learning
+path, a coach, a tool directory, and a working sales pipeline behind a live
+node-graph board.
 
-<!-- Run `npm run dev` and open http://127.0.0.1:5173/#/sales-automation -->
+Five tabs, RTL by default:
+
+| Tab | Route | What it does |
+| --- | --- | --- |
+| داشبورد | `#/` | Editable income headline, progress across the 23 stages, the eight AI tools, the coach |
+| مراحل | `#/levels` | The seven levels; marking a stage done persists and moves the overall bar |
+| پروفایل | `#/profile` | Profile (editable), business, subscription, support, security |
+| AI کوچ | `#/ai-coach` | Chat with the coach, with ready prompts |
+| ابزارها | `#/tools` | The eight AI tools, two courses, and 44 external tools with search and category filters |
+
+The **مدیریت فروش** tool opens the sales board at `#/sales-automation`: a lead
+arrives, is scored from its own event history, routed hot / warm / cold, walked
+through a nurture sequence, booked, checked out and paid — and a slice of that
+payment is allocated back to the channel that produced it. The canvas shows it
+as it happens, with `#/leads` and `#/inbox` beside it.
 
 ## Quick start
 
 ```bash
 npm install
 npm run seed -- --fresh   # optional: a month of sample leads to look at
-npm run dev               # API on :8787, dashboard on :5173
+npm run dev               # API on :8787, app on :5173
 ```
 
-Then open <http://127.0.0.1:5173/#/sales-automation>.
+Then open <http://127.0.0.1:5173/>.
 
 **No credentials are required.** With an empty environment the whole funnel
 runs: channels record their outbound messages instead of delivering them, copy
@@ -33,6 +45,8 @@ no money. `GET /api/health` always reports which half is real.
 | Outreach copy and next-best-action | templates by default; Claude with `ANTHROPIC_API_KEY` |
 | Checkout and payments | local mock — **no gateway, no money** |
 | ElevenLabs / Higgsfield / Vapi | not wired; the canvas counts content rows the seed creates |
+| Profile, level progress, coach history | real, stored in the database |
+| The seven other AI tools and the two courses | not built here — their cards carry a **به‌زودی** badge rather than pretending |
 
 Copy `.env.example` to `.env` to turn any of these on. `.env` is gitignored;
 never commit a token.
@@ -52,16 +66,20 @@ message really arrives, and replying to it re-scores the lead.
 
 ```
 server/
-  domain/       pure, tested logic: scoring · routing · sequences · pipeline-view
+  domain/       pure, tested logic: scoring · routing · sequences · levels · pipeline-view
   db/           node:sqlite schema and every query
   adapters/     one interface per external service, real or fallback
-  routes/       capture · leads · pipeline · SSE stream · webhooks · checkout
+  routes/       app (profile · progress · coach) · leads · pipeline · SSE · webhooks · checkout
   service.ts    the orchestration: capture → score → route → nurture → sale → loop
 src/
-  data/pipeline.ts   layout, copy and the fallback numbers for the canvas
-  api/               fetch client and the live metrics + SSE hook
-  pages/             board · leads · inbox
+  data/         tools.ts · levels.ts · pipeline.ts — every list and label, bilingual
+  components/   AppShell · TabBar · PageBanner · Card · Icon — shared by every page
+  api/          fetch client, app-state hook, live metrics + SSE hook
+  pages/        dashboard · levels · profile · ai-coach · tools · board · leads · inbox
 ```
+
+Every visible string carries both `fa` and `en`, and the whole app flips
+direction with the language switch on the board's header.
 
 **Scoring** (`server/domain/scoring.ts`) reads the append-only `lead_events`
 table: channel intent sets a floor, each event adds weight, and every

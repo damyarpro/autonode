@@ -22,12 +22,22 @@ export type NextBestAction = {
   confidence: number
 }
 
-/** Writes the outreach copy and picks the next move. */
+export type ChatTurn = { role: 'user' | 'assistant'; content: string }
+
+export type CoachInput = {
+  messages: ChatTurn[]
+  locale: string
+  /** Where the user is on the learning path, so answers stay on their level. */
+  context: { levelId: number; percent: number; headline: string | null }
+}
+
+/** Writes the outreach copy, picks the next move, and answers the coach chat. */
 export interface AiAdapter {
   readonly name: string
   readonly live: boolean
   draft(input: DraftInput): Promise<string>
   nextBestAction(input: Omit<DraftInput, 'template'>): Promise<NextBestAction>
+  coach(input: CoachInput): Promise<string>
 }
 
 export interface PaymentAdapter {

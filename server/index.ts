@@ -11,6 +11,7 @@ import pipeline from './routes/pipeline.ts'
 import stream from './routes/stream.ts'
 import webhooks from './routes/webhooks.ts'
 import checkout from './routes/checkout.ts'
+import appRoutes from './routes/app.ts'
 
 export async function buildServer() {
   const app = Fastify({ logger: false })
@@ -42,6 +43,7 @@ export async function buildServer() {
   await app.register(stream)
   await app.register(webhooks)
   await app.register(checkout)
+  await app.register(appRoutes)
   return app
 }
 

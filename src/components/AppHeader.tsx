@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
+import { Icon } from './Icon'
 import { heading } from '../data/pipeline'
 import { useI18n } from '../i18n/I18nProvider'
 
@@ -7,6 +8,8 @@ const NAV = [
   { to: '/leads', label: { en: 'Leads', fa: 'لیدها' } },
   { to: '/inbox', label: { en: 'Inbox', fa: 'صندوق' } },
 ]
+
+const BACK = { en: 'Tools', fa: 'ابزارها' }
 
 function LocaleSwitch() {
   const { locale, setLocale } = useI18n()
@@ -35,9 +38,14 @@ export default function AppHeader({ connected }: { connected?: boolean }) {
 
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-hairline bg-panel/70 px-5 py-3">
-      <span className="grid h-7 w-7 place-items-center rounded-md border border-hairline text-[11px] font-semibold text-accent">
-        ⌘
-      </span>
+      <Link
+        to="/tools"
+        aria-label={t(BACK)}
+        title={t(BACK)}
+        className="grid h-7 w-7 place-items-center rounded-md border border-hairline text-accent transition hover:border-accent/50"
+      >
+        <Icon name="ChevronLeft" size={15} className="rtl:rotate-180" />
+      </Link>
       <h1 className="text-[15px] font-semibold tracking-tight">{t(heading.title)}</h1>
 
       {connected !== undefined && (

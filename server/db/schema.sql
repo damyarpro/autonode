@@ -93,3 +93,31 @@ CREATE TABLE IF NOT EXISTS content_pieces (
   status     TEXT NOT NULL DEFAULT 'ready',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Single-row profile for the app shell, plus per-level stage progress.
+CREATE TABLE IF NOT EXISTS app_profile (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  display_name  TEXT    NOT NULL DEFAULT 'کاربر MonetizeAI',
+  full_name     TEXT,
+  phone         TEXT,
+  headline      TEXT    NOT NULL DEFAULT 'اولین پلتفرم',
+  plan          TEXT    NOT NULL DEFAULT 'free',
+  plan_expires  TEXT,
+  points        INTEGER NOT NULL DEFAULT 0,
+  bot_id        TEXT,
+  bot_username  TEXT,
+  updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS level_progress (
+  level_id    INTEGER PRIMARY KEY,
+  stages_done INTEGER NOT NULL DEFAULT 0,
+  updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS coach_messages (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  role    TEXT NOT NULL,
+  content TEXT NOT NULL,
+  at      TEXT NOT NULL DEFAULT (datetime('now'))
+);

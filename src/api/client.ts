@@ -15,6 +15,31 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 export const getJson = <T,>(path: string) => json<T>(path)
 export const postJson = <T,>(path: string, body?: unknown) =>
   json<T>(path, { method: 'POST', body: JSON.stringify(body ?? {}) })
+export const patchJson = <T,>(path: string, body: unknown) =>
+  json<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
+export const deleteJson = <T,>(path: string) => json<T>(path, { method: 'DELETE' })
+
+export type AppProfile = {
+  displayName: string
+  fullName: string | null
+  phone: string | null
+  headline: string
+  plan: string
+  planExpires: string | null
+  points: number
+  bot: { id: string; username: string | null } | null
+  level: number
+}
+
+export type Progress = {
+  levels: { levelId: number; stagesDone: number; stages: number }[]
+  totalStages: number
+  stagesDone: number
+  percent: number
+  currentLevel: number
+}
+
+export type CoachMessage = { id: number; role: 'user' | 'assistant'; content: string; at: string }
 
 export type ApiLead = {
   id: number
