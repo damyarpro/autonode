@@ -1,0 +1,78 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/vazirmatn/400.css';
+@import '@fontsource/vazirmatn/500.css';
+@import '@fontsource/vazirmatn/600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-latin text-white antialiased;
+    margin: 0;
+  }
+
+  html.locale-fa body {
+    @apply font-farsi;
+  }
+}
+
+@keyframes dashdraw {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* React Flow chrome, restyled for the dark canvas. */
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+.react-flow__edge-text {
+  font-size: 9px;
+  letter-spacing: 0.02em;
+}
+
+.react-flow__controls {
+  @apply overflow-hidden rounded-xl border border-hairline bg-panel/90 shadow-none backdrop-blur;
+}
+
+.react-flow__controls-button {
+  @apply border-0 border-b border-hairline bg-transparent text-white/60 hover:bg-white/[0.06] hover:text-white;
+}
+
+.react-flow__controls-button:last-child {
+  @apply border-b-0;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__attribution {
+  display: none;
+}
