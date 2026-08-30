@@ -1,6 +1,11 @@
 import type { IconKey } from '../data/types'
 
-type Glyph = { tint: string; fg: string; path: JSX.Element }
+type Glyph = { tint: string; fg: string; path: JSX.Element; outline?: boolean }
+
+/** Neutral system steps are drawn as outlined tiles; branded steps are filled. */
+const OUTLINED = new Set<IconKey>([
+  'warm', 'cold', 'voice', 'calendar', 'memory', 'inbox', 'router', 'delivery', 'support', 'referral',
+])
 
 const s = (d: string, extra?: Record<string, string | number>) => (
   <path d={d} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...extra} />
@@ -37,10 +42,17 @@ const glyphs: Record<IconKey, Glyph> = {
 
 export function NodeIcon({ icon, size = 30 }: { icon: IconKey; size?: number }) {
   const glyph = glyphs[icon]
+  const outlined = OUTLINED.has(icon)
   return (
     <span
       className="grid shrink-0 place-items-center rounded-[9px]"
-      style={{ width: size, height: size, background: glyph.tint, color: glyph.fg }}
+      style={{
+        width: size,
+        height: size,
+        background: outlined ? 'rgba(255,255,255,0.04)' : glyph.tint,
+        color: outlined ? 'rgba(255,255,255,0.85)' : glyph.fg,
+        boxShadow: outlined ? 'inset 0 0 0 1px rgba(255,255,255,0.14)' : 'none',
+      }}
     >
       <svg viewBox="0 0 24 24" width={size * 0.62} height={size * 0.62} aria-hidden>
         {glyph.path}

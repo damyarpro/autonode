@@ -48,6 +48,8 @@ export type StageNodeData = {
   /** Locale-agnostic layout position; mirrored horizontally in RTL. */
   x: number
   y: number
+  /** Filled in by the canvas to stagger the entrance animation. */
+  order?: number
 }
 
 export type StageNode = StageNodeData & { id: string }
