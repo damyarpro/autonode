@@ -791,3 +791,13 @@ export const callCounts = () => ({
   meetings: count("SELECT COUNT(*) AS n FROM bookings WHERE status = 'booked'"),
   referralAsks: count('SELECT COUNT(*) AS n FROM referral_asks'),
 })
+
+/**
+ * The deal a payment claims to be for. The payment webhook reads it so a token
+ * that was valid for one checkout cannot confirm a different amount.
+ */
+export function dealById(dealId: number): { id: number; lead_id: number; amount_toman: number; stage: string } | undefined {
+  return db()
+    .prepare('SELECT id, lead_id, amount_toman, stage FROM deals WHERE id = ?')
+    .get(dealId) as { id: number; lead_id: number; amount_toman: number; stage: string } | undefined
+}

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { env } from '../env.ts'
 import { CHANNELS, type Channel } from '../types.ts'
+import { verifyCheckout } from '../domain/checkout-token.ts'
 import * as q from '../db/queries.ts'
 import { capture, capturePayment, handleInbound } from '../service.ts'
 
@@ -84,23 +85,41 @@ export default async function webhooks(app: FastifyInstance) {
     return reply.code(201).send({ lead })
   })
 
-  /** Called by the local checkout page. No gateway, no money. */
+  /**
+   * Called by the local checkout page. No gateway, no money — but it writes a
+   * sale and makes the growth loop reinvest, so it is not open: only a
+   * confirmation carrying the token `startCheckout` signed is accepted.
+   */
   app.post('/api/webhooks/payment', async (request, reply) => {
     const body = (request.body ?? {}) as {
       leadId?: number
       dealId?: number
       ref?: string
       amountToman?: number
+      token?: string
     }
     if (!body.leadId || !body.dealId || !body.ref || !body.amountToman) {
       return reply.code(400).send({ error: 'leadId, dealId, ref and amountToman are required' })
     }
-    const result = capturePayment({
+
+    const facts = {
       leadId: Number(body.leadId),
       dealId: Number(body.dealId),
       ref: body.ref,
       amountToman: Number(body.amountToman),
-    })
+    }
+    if (!verifyCheckout(facts, body.token ?? '', env.checkoutSigningSecret)) {
+      return reply.code(401).send({ error: 'bad checkout token' })
+    }
+
+    // The token proves the facts were ours; the deal row proves they are still
+    // the deal's own, so a captured link cannot confirm a different amount.
+    const deal = q.dealById(facts.dealId)
+    if (!deal || deal.lead_id !== facts.leadId || deal.amount_toman !== facts.amountToman) {
+      return reply.code(409).send({ ok: false, reason: 'deal does not match' })
+    }
+
+    const result = capturePayment(facts)
     if (!result.ok) return reply.code(409).send(result)
     return result
   })

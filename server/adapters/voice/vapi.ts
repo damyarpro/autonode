@@ -19,16 +19,31 @@ export function hasVapi(): boolean {
   return apiKey.length > 0 && assistantId.length > 0
 }
 
+/** Default country for a number written the local way. 98 is Iran. */
+const defaultCallingCode = () => (process.env.DEFAULT_CALLING_CODE ?? '98').replace(/\D/g, '')
+
 /**
  * The only number we ever hold for a lead is their handle, and on most channels
  * that is a username. Anything that is not a phone number means there is
  * nothing to dial.
+ *
+ * Vapi wants E.164. A Persian speaker writes their number as `09123456789`, and
+ * prefixing that with `+` produces `+09…`, which every carrier rejects — so the
+ * national trunk `0` is replaced by the country's calling code instead.
  */
 export function dialableNumber(lead: Lead): string | null {
   const handle = lead.handle?.trim() ?? ''
   if (!/^\+?[\d][\d\s\-()]{6,19}$/.test(handle)) return null
-  const digits = handle.replace(/[^\d]/g, '')
-  return handle.startsWith('+') ? `+${digits}` : `+${digits}`
+
+  const digits = handle.replace(/\D/g, '')
+  if (handle.startsWith('+')) return `+${digits}`
+  if (digits.startsWith('00')) return `+${digits.slice(2)}`
+
+  const code = defaultCallingCode()
+  if (digits.startsWith('0')) return `+${code}${digits.slice(1)}`
+  // Already carries its country code, e.g. 989123456789.
+  if (digits.startsWith(code)) return `+${digits}`
+  return `+${code}${digits}`
 }
 
 const TIMEOUT_MS = 15_000

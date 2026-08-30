@@ -287,15 +287,30 @@ test('the same payment reference cannot be banked twice', async () => {
     ref: string
     dealId: number
     amountToman: number
+    token: string
   }
   assert.ok(checkout.url.includes(checkout.ref), 'the checkout url carries its reference')
 
-  const payload = {
+  const facts = {
     leadId: lead.id,
     dealId: checkout.dealId,
     ref: checkout.ref,
     amountToman: checkout.amountToman,
   }
+
+  // Anyone can reach this endpoint, so an unsigned claim must not write a sale.
+  const forged = await send('POST', '/api/webhooks/payment', facts)
+  assert.equal(forged.statusCode, 401, 'a payment claimed without the token is refused')
+
+  // Nor may a real token confirm a bigger amount than the deal it was signed for.
+  const inflated = await send('POST', '/api/webhooks/payment', {
+    ...facts,
+    amountToman: facts.amountToman * 10,
+    token: checkout.token,
+  })
+  assert.equal(inflated.statusCode, 401, 'the amount is part of what was signed')
+
+  const payload = { ...facts, token: checkout.token }
   const first = await send('POST', '/api/webhooks/payment', payload)
   assert.equal(first.statusCode, 200)
   assert.equal((first.json() as { ok: boolean }).ok, true)

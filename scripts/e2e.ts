@@ -79,7 +79,7 @@ assert.equal(qualified.lead.route, 'hot', 'a lead this engaged lands on the hot 
 step(`meeting booked and completed · route ${qualified.lead.route}`)
 
 // 5. checkout
-const checkout = await call<{ url: string; ref: string; dealId: number; amountToman: number }>(
+const checkout = await call<{ url: string; ref: string; dealId: number; amountToman: number; token: string }>(
   'POST',
   `/api/checkout/${leadId}`,
 )
@@ -87,11 +87,21 @@ assert.ok(checkout.url.includes(checkout.ref), 'the checkout url carries its ref
 step(`checkout created for ${checkout.amountToman.toLocaleString('en-US')} toman`)
 
 // 6. payment, which closes the growth loop
+// The unsigned confirmation is what an outsider could send; it must not work.
+const forged = await fetch(`${base}/api/webhooks/payment`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ leadId, dealId: checkout.dealId, ref: checkout.ref, amountToman: checkout.amountToman }),
+})
+assert.equal(forged.status, 401, 'a payment claimed without the checkout token is refused')
+step('unsigned payment claim rejected with 401')
+
 const paid = await call<{ ok: boolean; reinvest: number }>('POST', '/api/webhooks/payment', {
   leadId,
   dealId: checkout.dealId,
   ref: checkout.ref,
   amountToman: checkout.amountToman,
+  token: checkout.token,
 })
 assert.equal(paid.ok, true)
 assert.ok(paid.reinvest > 0, 'part of the payment is reinvested')
@@ -101,7 +111,13 @@ step(`payment captured · ${paid.reinvest.toLocaleString('en-US')} toman reinves
 const replay = await fetch(`${base}/api/webhooks/payment`, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ leadId, dealId: checkout.dealId, ref: checkout.ref, amountToman: checkout.amountToman }),
+  body: JSON.stringify({
+    leadId,
+    dealId: checkout.dealId,
+    ref: checkout.ref,
+    amountToman: checkout.amountToman,
+    token: checkout.token,
+  }),
 })
 assert.equal(replay.status, 409, 'a replayed payment is rejected')
 step('replayed payment rejected with 409')

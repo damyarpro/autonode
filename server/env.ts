@@ -32,6 +32,13 @@ export const env = {
 
   webhookSigningSecret: process.env.WEBHOOK_SIGNING_SECRET ?? '',
 
+  /**
+   * Signs the mock checkout so only a confirmation this server issued is
+   * accepted. Random per boot when unset, which is safe by default and simply
+   * means a checkout link does not survive a restart — set it to keep them.
+   */
+  checkoutSigningSecret: process.env.CHECKOUT_SIGNING_SECRET || randomBytes(32).toString('hex'),
+
   /** Multiplier on every nurture delay. 0 makes each step due immediately. */
   sequenceSpeed: Number(process.env.SEQUENCE_SPEED ?? 1),
   workerIntervalMs: Number(process.env.WORKER_INTERVAL_MS ?? 15_000),

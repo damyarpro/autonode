@@ -20,6 +20,8 @@ export default async function checkout(app: FastifyInstance) {
       dealId: Number(query.deal),
       ref: query.ref ?? '',
       amountToman: Number(query.amount),
+      // Signed by startCheckout; the confirmation is refused without it.
+      token: query.token ?? '',
     }
     reply.type('text/html').send(`<!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
