@@ -1,14 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,
@@ -16,5 +20,9 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true
   },
-  "include": ["server", "scripts/**/*.ts"]
+  "include": [
+    "server",
+    "scripts/**/*.ts",
+    "shared"
+  ]
 }

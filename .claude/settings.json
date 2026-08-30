@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/session-start.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run build)",
+      "Bash(npm run typecheck)",
+      "Bash(npm test)",
+      "Bash(npm run e2e)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(node --test:*)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -s -X GET http://127.0.0.1:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}

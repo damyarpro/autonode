@@ -121,3 +121,15 @@ CREATE TABLE IF NOT EXISTS coach_messages (
   content TEXT NOT NULL,
   at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- One row per AI tool run: the inputs and the structured answer, so a user can
+-- come back to what a tool told them.
+CREATE TABLE IF NOT EXISTS tool_runs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  tool_id     TEXT NOT NULL,
+  inputs_json TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  produced_by TEXT NOT NULL,
+  at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS tool_runs_tool ON tool_runs (tool_id, id DESC);
