@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS content_pieces (
 -- Single-row profile for the app shell, plus per-level stage progress.
 CREATE TABLE IF NOT EXISTS app_profile (
   id            INTEGER PRIMARY KEY CHECK (id = 1),
-  display_name  TEXT    NOT NULL DEFAULT 'کاربر MonetizeAI',
+  display_name  TEXT    NOT NULL DEFAULT 'کاربر موج ابزار',
   full_name     TEXT,
   phone         TEXT,
   headline      TEXT    NOT NULL DEFAULT 'اولین پلتفرم',

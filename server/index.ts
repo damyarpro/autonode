@@ -70,7 +70,7 @@ if (isEntrypoint) {
   startWorker()
 
   const status = adapterStatus()
-  console.log(`\n  monitiezai api  →  http://${env.host}:${env.port}`)
+  console.log(`\n  autonode api   →  http://${env.host}:${env.port}`)
   console.log(`  database        →  ${env.dbFile}`)
   console.log(`  ai              →  ${status.ai}${hasClaude() ? '' : '  (set ANTHROPIC_API_KEY for Claude)'}`)
   console.log(`  telegram        →  ${hasTelegram() ? 'live' : 'simulated  (set TELEGRAM_BOT_TOKEN)'}`)

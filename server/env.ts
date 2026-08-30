@@ -12,7 +12,7 @@ export const env = {
   port: Number(process.env.PORT ?? 8787),
   host: process.env.HOST ?? '127.0.0.1',
   publicUrl: process.env.PUBLIC_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8787}`,
-  dbFile: process.env.DB_FILE ?? 'data/monitiez.db',
+  dbFile: process.env.DB_FILE ?? 'data/autonode.db',
 
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
   // Secret path segment on the webhook route; generated per boot when unset so

@@ -1,6 +1,6 @@
-# monitiezai — project rules
+# Autonode (موج ابزار) — project rules
 
-Persian-first mobile web app (MonetizeAI) with a real backend. Five tabs plus a
+Persian-first mobile web app with a real backend. Five tabs plus a
 live sales-automation board. Read this before changing anything.
 
 ## Commands
@@ -36,7 +36,7 @@ server/
 shared/
   aiToolSpecs.ts   the AI tool contract, imported by both halves.
 src/
-  data/       tools.ts · levels.ts · pipeline.ts — every list and label.
+  data/       brand.ts · tools.ts · levels.ts · pipeline.ts — every list and label.
   components/ AppShell · TabBar · PageBanner · Card · Icon — shared chrome.
   api/        fetch client and hooks. No component calls fetch directly.
   pages/      one file per route.
@@ -53,7 +53,8 @@ tests and the e2e script on every push.
 1. **One source of truth per list.** Tools, levels, pipeline nodes and their
    copy live in `src/data/*.ts`. Never hard-code a tool name, a level title or a
    node label in a component. Adding a tool means editing `tools.ts` and
-   nothing else.
+   nothing else. The product name is in `src/data/brand.ts`; copy that mentions
+   it writes `{brand}` and passes through `withBrand()`.
 
 2. **Every user-visible string is bilingual.** Type `Bi = { fa: string; en: string }`.
    Render through `useI18n().t()`. A string that only exists in one language is

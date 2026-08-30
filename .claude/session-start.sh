@@ -9,7 +9,7 @@ if [ ! -d node_modules ]; then
   npm install --no-audit --no-fund >/dev/null 2>&1 || { echo "npm install failed"; exit 0; }
 fi
 
-if [ ! -f data/monitiez.db ]; then
+if [ ! -f data/autonode.db ]; then
   echo "seeding the sample database…"
   npm run seed --silent -- --fresh 2>&1 | tail -1
 fi

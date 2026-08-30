@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Card, PrimaryButton } from '../components/Card'
 import { Icon } from '../components/Icon'
+import { withBrand } from '../data/brand'
 import { useI18n } from '../i18n/I18nProvider'
 import type { LoginOutcome } from '../api/useSession'
 
 const COPY = {
-  title: { fa: 'ورود به MonetizeAI', en: 'Sign in to MonetizeAI' },
+  title: { fa: 'ورود به {brand}', en: 'Sign in to {brand}' },
   subtitle: {
     fa: 'این نسخه با رمز عبور محافظت می‌شود. رمز را وارد کنید.',
     en: 'This instance is password protected. Enter the password to continue.',
@@ -43,7 +44,7 @@ const ERRORS: Record<Exclude<LoginOutcome, 'ok'> | 'empty', keyof typeof COPY> =
  * re-renders on success.
  */
 export default function Login({ login }: { login: (password: string) => Promise<LoginOutcome> }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [password, setPassword] = useState('')
   const [error, setError] = useState<keyof typeof ERRORS | null>(null)
   const [busy, setBusy] = useState(false)
@@ -76,7 +77,7 @@ export default function Login({ login }: { login: (password: string) => Promise<
               <Icon name="ShieldCheck" size={20} />
             </span>
             <div className="min-w-0 flex-1 text-start">
-              <h1 className="text-[15px] font-semibold text-white/90">{t(COPY.title)}</h1>
+              <h1 className="text-[15px] font-semibold text-white/90">{withBrand(t(COPY.title), locale)}</h1>
               <p className="mt-1 text-[11px] leading-relaxed text-white/40">{t(COPY.subtitle)}</p>
             </div>
           </div>

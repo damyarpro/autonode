@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { Card, CardHead, PrimaryButton, Row, SoonBadge } from '../components/Card'
 import { Icon } from '../components/Icon'
+import { brand, withBrand } from '../data/brand'
 import { patchJson } from '../api/client'
 import { useAppState } from '../api/useAppState'
 import { useI18n } from '../i18n/I18nProvider'
@@ -36,9 +37,9 @@ const COPY = {
   manageSub: { fa: 'مدیریت اشتراک', en: 'Manage subscription' },
 
   support: { fa: 'پشتیبانی', en: 'Support' },
-  supportSub: { fa: 'با عشق از تیم MonetizeAI', en: 'With love from the MonetizeAI team' },
+  supportSub: { fa: 'با عشق از تیم {brand}', en: 'With love from the {brand} team' },
   supportBody: {
-    fa: 'سلام! ما در MonetizeAI متعهد به موفقیت شما هستیم. اگر سوالی دارید یا به کمک نیاز دارید، تیم پشتیبانی ما آماده خدمت‌رسانی است. ما اینجا هستیم تا در هر مرحله از مسیر رشد کسب‌وکارتان همراه شما باشیم.',
+    fa: 'سلام! ما در {brand} متعهد به موفقیت شما هستیم. اگر سوالی دارید یا به کمک نیاز دارید، تیم پشتیبانی ما آماده خدمت‌رسانی است. ما اینجا هستیم تا در هر مرحله از مسیر رشد کسب‌وکارتان همراه شما باشیم.',
     en: 'We are committed to your success. If you have a question or need a hand, our support team is here at every step of the way.',
   },
   guide: { fa: 'راهنمای استفاده', en: 'User guide' },
@@ -99,7 +100,7 @@ function EditForm({
 }
 
 export default function Profile() {
-  const { t, num, n } = useI18n()
+  const { t, num, n, locale } = useI18n()
   const { profile, online, refresh } = useAppState()
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [profile?.fullName, profile?.phone])
@@ -112,7 +113,7 @@ export default function Profile() {
         <CardHead
           icon="User"
           kicker={COPY.profile}
-          title={profile?.displayName ?? 'MonetizeAI'}
+          title={profile?.displayName ?? t(brand.name)}
           subtitle={t(COPY.level).replace('{n}', num(profile?.level ?? 0))}
         />
         <div className="mt-3 border-t border-hairline pt-2">
@@ -202,9 +203,9 @@ export default function Profile() {
       </Card>
 
       <Card className="mb-3">
-        <CardHead icon="MessageSquare" kicker={COPY.support} title={t(COPY.support)} subtitle={t(COPY.supportSub)} />
+        <CardHead icon="MessageSquare" kicker={COPY.support} title={t(COPY.support)} subtitle={withBrand(t(COPY.supportSub), locale)} />
         <p className="mt-3 border-t border-hairline pt-3 text-[11.5px] leading-relaxed text-white/45">
-          {t(COPY.supportBody)}
+          {withBrand(t(COPY.supportBody), locale)}
         </p>
         <div className="mt-3 flex gap-2">
           <Link to="/ai-coach" className="flex-1">

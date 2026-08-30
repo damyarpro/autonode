@@ -8,7 +8,7 @@ import { join } from 'node:path'
  * database, asserting the outcome at every stage. Run with `npm run e2e`.
  */
 
-const workdir = mkdtempSync(join(tmpdir(), 'monitiez-e2e-'))
+const workdir = mkdtempSync(join(tmpdir(), 'autonode-e2e-'))
 process.env.DB_FILE = join(workdir, 'e2e.db')
 process.env.SEQUENCE_SPEED = '0' // every nurture step is due immediately
 process.env.WORKER_ENABLED = 'false' // this script drives the worker itself

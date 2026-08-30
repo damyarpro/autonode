@@ -15,7 +15,7 @@ import { join } from 'node:path'
  * copy, mock payments.
  */
 
-const workdir = mkdtempSync(join(tmpdir(), 'monitiez-routes-'))
+const workdir = mkdtempSync(join(tmpdir(), 'autonode-routes-'))
 process.env.DB_FILE = join(workdir, 'routes.db')
 process.env.SEQUENCE_SPEED = '0'
 process.env.WORKER_ENABLED = 'false'

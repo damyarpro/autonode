@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { Card, PrimaryButton, ProgressBar, SoonBadge } from '../components/Card'
 import { Icon, IconTile } from '../components/Icon'
+import { brand } from '../data/brand'
 import { aiTools } from '../data/tools'
 import { TOTAL_STAGES } from '../data/levels'
 import { patchJson } from '../api/client'
@@ -10,7 +11,6 @@ import { useAppState } from '../api/useAppState'
 import { useI18n } from '../i18n/I18nProvider'
 
 const COPY = {
-  brand: { fa: 'MonetizeAI', en: 'MonetizeAI' },
   freePlan: { fa: 'اشتراک رایگان', en: 'Free plan' },
   income: { fa: 'درآمد ماهانه', en: 'Monthly income' },
   growth: { fa: '+۱۲٪ رشد', en: '+12% growth' },
@@ -91,7 +91,7 @@ export default function Dashboard() {
             <Icon name="User" size={19} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-semibold text-white/90">{t(COPY.brand)}</div>
+            <div className="truncate text-[13px] font-semibold text-white/90">{t(brand.name)}</div>
             <span className="mt-0.5 inline-block rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[9.5px] text-white/45">
               {t(COPY.freePlan)}
             </span>
