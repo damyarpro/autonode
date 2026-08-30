@@ -1,17 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Bi, Locale } from '../data/types'
+import type { Bi, Locale, Slot, SlotFormat } from '../data/types'
+import { formatSlot, toFaDigits } from './format'
 
-const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-
-/** Latin digits and separators → Persian, so badge counts match the body copy. */
-export function toFaDigits(input: string): string {
-  return input.replace(/[0-9,.]/g, (ch) => {
-    if (ch === ',') return '٬'
-    if (ch === '.') return '٫'
-    return FA_DIGITS[Number(ch)]
-  })
-}
+export { toFaDigits } from './format'
 
 type I18nValue = {
   locale: Locale
@@ -22,6 +14,10 @@ type I18nValue = {
   t: (value: Bi) => string
   /** Render a numeric string in the active locale's digits. */
   n: (value: string) => string
+  /** Format a raw number for the active locale. */
+  num: (value: number, format?: SlotFormat) => string
+  /** Render a slot, substituting `{n}` in its wrapper text. */
+  slot: (slot: Slot | undefined, live?: number) => string | undefined
 }
 
 const I18nContext = createContext<I18nValue | null>(null)
@@ -38,17 +34,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const toggle = useCallback(() => setLocale((prev) => (prev === 'fa' ? 'en' : 'fa')), [])
 
-  const value = useMemo<I18nValue>(
-    () => ({
+  const value = useMemo<I18nValue>(() => {
+    const num = (raw: number, format?: SlotFormat) => formatSlot(raw, format, locale)
+    return {
       locale,
       isRtl: locale === 'fa',
       setLocale,
       toggle,
       t: (bi) => bi[locale],
       n: (raw) => (locale === 'fa' ? toFaDigits(raw) : raw),
-    }),
-    [locale, toggle],
-  )
+      num,
+      slot: (slotValue, live) => {
+        if (!slotValue) return undefined
+        const formatted = num(live ?? slotValue.value, slotValue.format)
+        return slotValue.text ? slotValue.text[locale].replace('{n}', formatted) : formatted
+      },
+    }
+  }, [locale, toggle])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }

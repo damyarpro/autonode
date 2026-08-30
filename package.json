@@ -4,26 +4,37 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "dev:api": "node --disable-warning=ExperimentalWarning --import tsx --env-file-if-exists=.env server/index.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false"
+    "typecheck": "tsc -b",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test \"server/**/*.test.ts\"",
+    "seed": "node --disable-warning=ExperimentalWarning --import tsx --env-file-if-exists=.env scripts/seed.ts",
+    "e2e": "node --disable-warning=ExperimentalWarning --import tsx --env-file-if-exists=.env scripts/e2e.ts",
+    "telegram:register": "node --disable-warning=ExperimentalWarning --import tsx --env-file-if-exists=.env scripts/register-telegram.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@fontsource/inter": "^5.1.0",
     "@fontsource/vazirmatn": "^5.1.0",
     "@xyflow/react": "^12.3.5",
+    "fastify": "^5.12.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.13",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
   }

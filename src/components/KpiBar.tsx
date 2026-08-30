@@ -1,56 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { KpiIcon } from './icons'
 import { kpis, timeline } from '../data/pipeline'
 import { useI18n } from '../i18n/I18nProvider'
+import type { SlotFormat } from '../data/types'
 
-const DIGIT_RUN = /[\d۰-۹][\d۰-۹.,٫٬]*/
-
-/** Counts the first number inside a formatted string up from zero on mount. */
-function useCountUp(text: string, duration = 900): string {
-  const [rendered, setRendered] = useState(text)
+/** Counts a value up from where it last sat, so live updates animate too. */
+function useCountUp(target: number, duration = 800): number {
+  const [shown, setShown] = useState(target)
+  const from = useRef(target)
 
   useEffect(() => {
-    const match = DIGIT_RUN.exec(text)
-    if (!match) {
-      setRendered(text)
-      return
-    }
-
-    const raw = match[0]
-    const isFarsi = /[۰-۹]/.test(raw)
-    const normalised = raw.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[,٬]/g, '').replace('٫', '.')
-    const target = Number(normalised)
-    if (!Number.isFinite(target)) {
-      setRendered(text)
-      return
-    }
-
-    const decimals = normalised.includes('.') ? normalised.split('.')[1].length : 0
-    const render = (value: number) => {
-      let out = value.toFixed(decimals)
-      if (isFarsi) out = out.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]).replace('.', '٫')
-      setRendered(text.replace(raw, out))
-    }
-
     const start = performance.now()
+    const origin = from.current
     let frame = 0
     const step = (now: number) => {
       const p = Math.min(1, (now - start) / duration)
-      render(target * (1 - Math.pow(1 - p, 3)))
+      const eased = 1 - Math.pow(1 - p, 3)
+      setShown(origin + (target - origin) * eased)
       if (p < 1) frame = requestAnimationFrame(step)
+      else from.current = target
     }
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
-  }, [text, duration])
+  }, [target, duration])
 
-  return rendered
+  return shown
 }
 
-function KpiValue({ text }: { text: string }) {
-  return <span className="text-[19px] font-semibold tracking-tight text-white">{useCountUp(text)}</span>
+function KpiValue({ value, format }: { value: number; format: SlotFormat }) {
+  const { num } = useI18n()
+  const shown = useCountUp(value)
+  // Money and counts read badly mid-tween at full precision; percent needs one.
+  const rounded = format === 'percent' ? Math.round(shown * 10) / 10 : Math.round(shown)
+  return <span className="text-[19px] font-semibold tracking-tight text-white">{num(rounded, format)}</span>
 }
 
-export default function KpiBar() {
+export default function KpiBar({ metrics }: { metrics: Record<string, number> }) {
   const { t } = useI18n()
 
   return (
@@ -78,7 +63,7 @@ export default function KpiBar() {
             <KpiIcon icon={kpi.icon} />
             <div className="min-w-0">
               <div className="truncate text-[10px] text-white/40">{t(kpi.label)}</div>
-              <KpiValue text={t(kpi.value)} />
+              <KpiValue value={metrics[kpi.metric] ?? kpi.value} format={kpi.format} />
               <div className="truncate text-[9.5px] text-white/30">{t(kpi.caption)}</div>
             </div>
           </div>

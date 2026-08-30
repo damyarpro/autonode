@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -29,8 +29,27 @@ const INITIAL_ZOOM = 0.8
 const loopbackOrder = edgeData.filter((edge) => edge.loopback).map((edge) => edge.id)
 const loopbackRail = (index: number) => loopbackOrder.indexOf(edgeData[index].id)
 
-function Canvas() {
+export type CanvasProps = {
+  /** Live values keyed `<nodeId>.<slot>`; empty falls back to the seeded copy. */
+  metrics: Record<string, number>
+  /** Bump counters per edge id, each one firing a single bright pulse. */
+  pulses: Record<string, number>
+  /** Node ids touched by the latest events, highlighted briefly. */
+  hotNodes: Record<string, number>
+}
+
+function Canvas({ metrics, pulses, hotNodes }: CanvasProps) {
   const { t, isRtl } = useI18n()
+
+  // A hit highlights its node for a moment, then clears itself.
+  const [flash, setFlash] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    const ids = Object.keys(hotNodes)
+    if (ids.length === 0) return
+    setFlash(Object.fromEntries(ids.map((id) => [id, true])))
+    const timer = window.setTimeout(() => setFlash({}), 1500)
+    return () => window.clearTimeout(timer)
+  }, [hotNodes])
   const wrapRef = useRef<HTMLDivElement>(null)
 
   // Open on the head of the funnel rather than fitting the whole 4,500px
@@ -58,11 +77,20 @@ function Canvas() {
           // The canvas itself stays LTR (React Flow positions by transform);
           // for Persian we mirror the layout so the funnel reads right-to-left.
           position: { x: isRtl ? layoutWidth - node.x - width : node.x, y: node.y },
-          data: { ...node, order: index } as StageFlowNode['data'],
+          data: {
+            ...node,
+            order: index,
+            live: flash[node.id] ?? false,
+            liveMetrics: {
+              badge: metrics[`${node.id}.badge`],
+              stat: metrics[`${node.id}.stat`],
+              stat2: metrics[`${node.id}.stat2`],
+            },
+          } as StageFlowNode['data'],
           draggable: false,
         }
       }),
-    [isRtl],
+    [isRtl, metrics, flash],
   )
 
   const flowEdges = useMemo<Edge[]>(
@@ -78,14 +106,14 @@ function Canvas() {
           data: edge.loopback
             ? { rail: -150 - loopbackRail(i) * 34 }
             : // Stagger the pulses so the whole board never blinks in unison.
-              { variant: edge.variant, delay: (i % 7) * 0.42 },
+              { variant: edge.variant, delay: (i % 7) * 0.42, burst: pulses[edge.id] ?? 0 },
           label: edge.label ? t(edge.label) : undefined,
           sourceHandle: edge.loopback ? 'source-t' : isRtl ? 'source-l' : 'source-r',
           targetHandle: edge.loopback ? 'target-t' : isRtl ? 'target-r' : 'target-l',
           markerEnd: { type: MarkerType.ArrowClosed, width: 11, height: 11, color: stroke },
         }
       }),
-    [isRtl, t],
+    [isRtl, t, pulses],
   )
 
   return (
@@ -113,10 +141,10 @@ function Canvas() {
   )
 }
 
-export default function PipelineCanvas() {
+export default function PipelineCanvas(props: CanvasProps) {
   return (
     <ReactFlowProvider>
-      <Canvas />
+      <Canvas {...props} />
     </ReactFlowProvider>
   )
 }

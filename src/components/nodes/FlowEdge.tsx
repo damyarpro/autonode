@@ -1,9 +1,9 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react'
 
 /**
- * The workhorse edge: a thin solid pipe with a lead marker sitting at the port
- * it leaves from, and a pulse that travels source → target so the funnel reads
- * as moving rather than static.
+ * The workhorse edge: a thin solid pipe with a lead marker at the port it leaves
+ * from, a steady pulse so the funnel reads as moving, and a bright one-off pulse
+ * whenever a real event crosses this edge.
  */
 export default function FlowEdge({
   id,
@@ -33,6 +33,7 @@ export default function FlowEdge({
   const length = Math.hypot(targetX - sourceX, targetY - sourceY)
   const duration = Math.min(4.2, Math.max(1.7, length / 150))
   const delay = typeof data?.delay === 'number' ? data.delay : 0
+  const burst = typeof data?.burst === 'number' ? data.burst : 0
   const markerX = sourceX + (sourcePosition === 'left' ? -11 : 11)
 
   return (
@@ -57,6 +58,14 @@ export default function FlowEdge({
           repeatCount="indefinite"
         />
       </circle>
+
+      {/* Remounting on every burst restarts the animation — one lead, one pulse. */}
+      {burst > 0 && (
+        <circle key={burst} r={4.4} fill="#ffffff" style={{ filter: `drop-shadow(0 0 7px ${pulse})` }}>
+          <animateMotion dur="1.1s" repeatCount="1" fill="freeze" path={path} />
+          <animate attributeName="opacity" values="1;1;0" keyTimes="0;0.8;1" dur="1.1s" repeatCount="1" fill="freeze" />
+        </circle>
+      )}
 
       {label && (
         <EdgeLabelRenderer>

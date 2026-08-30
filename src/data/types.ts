@@ -3,6 +3,15 @@ export type Locale = 'en' | 'fa'
 /** Every user-visible string in the graph carries both languages. */
 export type Bi = { en: string; fa: string }
 
+export type SlotFormat = 'count' | 'money' | 'percent' | 'days'
+
+/**
+ * A number on the board. `value` is the fallback the page renders before — or
+ * without — the API; the live value arrives keyed by `<nodeId>.<slot>`.
+ * `text` wraps it, with `{n}` marking where the number goes.
+ */
+export type Slot = { text?: Bi; value: number; format?: SlotFormat }
+
 export type IconKey =
   | 'elevenlabs'
   | 'higgsfield'
@@ -32,14 +41,14 @@ export type StageNodeData = {
   title: Bi
   /** Dotted middle line, e.g. "Qualify · Handle doubts · Book". */
   meta?: Bi
-  /** Bold stat line under the meta, e.g. "AI calls 105". */
-  stat?: Bi
-  /** Second stat line, used by the channel nodes for reach. */
-  stat2?: Bi
   /** Circled count on the leading edge of the card. */
-  badge?: string
+  badge?: Slot
+  /** Bold stat line under the meta. */
+  stat?: Slot
+  /** Second stat line, used by the channel nodes for reach. */
+  stat2?: Slot
   icon: IconKey
-  /** Renders the small "AI STACK" corner tag. */
+  /** Renders the small "AI STACK" label. */
   aiStack?: boolean
   variant?: 'default' | 'success'
   /** Icon strip shown inside the content-factory card. */
@@ -50,6 +59,8 @@ export type StageNodeData = {
   y: number
   /** Filled in by the canvas to stagger the entrance animation. */
   order?: number
+  /** Set by the canvas when a live event just crossed this node. */
+  live?: boolean
 }
 
 export type StageNode = StageNodeData & { id: string }
@@ -67,7 +78,10 @@ export type StageEdge = {
 export type Kpi = {
   id: string
   label: Bi
-  value: Bi
   caption: Bi
   icon: 'deal' | 'pipeline' | 'close' | 'cycle'
+  /** Live metric key; falls back to `value` when the API is unreachable. */
+  metric: string
+  value: number
+  format: SlotFormat
 }

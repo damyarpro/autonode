@@ -8,14 +8,19 @@ export type StageFlowNode = Node<StageNodeData & Record<string, unknown>, 'stage
 const handleStyle = { opacity: 0, width: 1, height: 1, border: 'none' }
 
 /**
- * The one card component behind every box on the canvas. Variants cover the
- * green payment nodes and the wide content-factory card; everything else is
- * data. Cards fade up in stage order on mount and on a locale switch.
+ * The one card component behind every box on the canvas. Numbers come from the
+ * slot's live value when the API is reachable and from its fallback otherwise —
+ * the card itself does not know which.
  */
 export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) {
-  const { t, n, isRtl } = useI18n()
+  const { t, slot, isRtl } = useI18n()
   const success = data.variant === 'success'
   const order = typeof data.order === 'number' ? data.order : 0
+  const live = (data.liveMetrics ?? {}) as Record<string, number>
+
+  const badge = slot(data.badge, live.badge)
+  const stat = slot(data.stat, live.stat)
+  const stat2 = slot(data.stat2, live.stat2)
 
   return (
     <div
@@ -26,6 +31,7 @@ export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) 
         'hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[0_10px_30px_-16px_rgba(124,92,255,0.9)]',
         success ? 'border-success/45 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]' : 'border-hairline',
         data.aiStack ? 'ai-glow' : '',
+        data.live ? 'node-hit' : '',
         selected ? 'ring-1 ring-accent/70' : '',
       ].join(' ')}
       style={{ width: data.width ?? 285, animationDelay: `${order * 45}ms` }}
@@ -38,15 +44,15 @@ export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) 
       <Handle id="source-t" type="source" position={Position.Top} style={handleStyle} />
 
       <div className="flex items-center gap-3">
-        {data.badge && (
+        {badge && (
           <span
             className={[
               'grid h-7 shrink-0 place-items-center rounded-full px-2 text-[10px] font-semibold tabular-nums',
-              data.badge.length > 3 ? 'min-w-[42px]' : 'w-7 px-0',
+              badge.length > 3 ? 'min-w-[42px]' : 'w-7 px-0',
               success ? 'bg-success/15 text-success' : 'bg-white/[0.08] text-white/70',
             ].join(' ')}
           >
-            {n(data.badge)}
+            {badge}
           </span>
         )}
         <div className="min-w-0 flex-1">
@@ -70,7 +76,7 @@ export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) 
         </div>
       )}
 
-      {(data.meta || data.stat || data.stat2) && (
+      {(data.meta || stat || stat2) && (
         <div className="mt-2.5 border-t border-hairline pt-2">
           <div className="flex items-baseline gap-2">
             {data.meta && <span className="text-[10px] leading-relaxed text-white/40">{t(data.meta)}</span>}
@@ -80,8 +86,8 @@ export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) 
               </span>
             )}
           </div>
-          {data.stat && <div className="text-[10.5px] font-semibold text-white/75">{t(data.stat)}</div>}
-          {data.stat2 && <div className="text-[10px] text-white/40">{t(data.stat2)}</div>}
+          {stat && <div className="text-[10.5px] font-semibold text-white/75">{stat}</div>}
+          {stat2 && <div className="text-[10px] text-white/40">{stat2}</div>}
         </div>
       )}
     </div>

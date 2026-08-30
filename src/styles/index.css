@@ -115,3 +115,25 @@
     animation: none;
   }
 }
+
+@keyframes node-hit {
+  0% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.55);
+    border-color: rgba(167, 139, 250, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(167, 139, 250, 0);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* A real event just touched this node. */
+.node-hit {
+  animation: node-hit 1.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-hit {
+    animation: none;
+  }
+}
