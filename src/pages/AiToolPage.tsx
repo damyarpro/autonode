@@ -7,7 +7,45 @@ import Chip from '../components/Chip'
 import { Icon } from '../components/Icon'
 import { useToolRun } from '../api/useToolRun'
 import { useI18n } from '../i18n/I18nProvider'
-import { specById, type AiToolSpec, type ToolField, type ToolRun, type ToolRunResult } from '../../shared/aiToolSpecs'
+import {
+  specById,
+  type AiToolSpec,
+  type Bi,
+  type ToolField,
+  type ToolRun,
+  type ToolRunResult,
+} from '../../shared/aiToolSpecs'
+
+/**
+ * The server reports validation failures as machine-readable `field:code`
+ * strings precisely so the client — which already drew the form from the same
+ * spec — can say them in the reader's language. Rendering the raw codes would
+ * put untranslated text in front of the user.
+ */
+function explainError(code: string, spec: AiToolSpec, digits: (value: string) => string): Bi {
+  const [fieldId, rule, arg] = code.split(':')
+  const label = spec.fields.find((field) => field.id === fieldId)?.label ?? { fa: fieldId, en: fieldId }
+
+  switch (rule) {
+    case 'required':
+      return { fa: `«${label.fa}» را پر کن.`, en: `“${label.en}” is required.` }
+    case 'too_long':
+      return {
+        fa: `«${label.fa}» از ${digits(arg ?? '')} نویسه بلندتر است.`,
+        en: `“${label.en}” is longer than ${arg ?? ''} characters.`,
+      }
+    case 'not_an_option':
+      return {
+        fa: `مقدار انتخاب‌شده برای «${label.fa}» معتبر نیست.`,
+        en: `That is not a valid option for “${label.en}”.`,
+      }
+    case 'not_text':
+      return { fa: `«${label.fa}» باید متن باشد.`, en: `“${label.en}” must be text.` }
+    default:
+      // An unknown code is still better shown than swallowed.
+      return { fa: code, en: code }
+  }
+}
 
 const COPY = {
   notFoundTitle: { fa: 'ابزار پیدا نشد', en: 'Tool not found' },
@@ -91,7 +129,7 @@ const initialValues = (spec: AiToolSpec): Record<string, string> =>
   )
 
 function ToolView({ spec }: { spec: AiToolSpec }) {
-  const { t, num, locale } = useI18n()
+  const { t, num, n, locale } = useI18n()
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(spec))
   const { runs, latest, loading, running, online, error, run, remove } = useToolRun(spec.id, locale)
 
@@ -146,7 +184,7 @@ function ToolView({ spec }: { spec: AiToolSpec }) {
               {error.messages.length > 0 && (
                 <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
                   {error.messages.map((message) => (
-                    <li key={message}>{message}</li>
+                    <li key={message}>{t(explainError(message, spec, n))}</li>
                   ))}
                 </ul>
               )}

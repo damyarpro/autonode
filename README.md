@@ -14,6 +14,10 @@ Five tabs, RTL by default:
 | AI کوچ | `#/ai-coach` | Chat with the coach, with ready prompts |
 | ابزارها | `#/tools` | The eight AI tools, two courses, and 44 external tools with search and category filters |
 
+Each AI tool opens at `#/tools/:id`: a form generated from its spec, a
+structured answer, and the history of past runs. The answer says whether the
+model or the offline templates produced it.
+
 The **مدیریت فروش** tool opens the sales board at `#/sales-automation`: a lead
 arrives, is scored from its own event history, routed hot / warm / cold, walked
 through a nurture sequence, booked, checked out and paid — and a slice of that
@@ -46,7 +50,7 @@ no money. `GET /api/health` always reports which half is real.
 | Checkout and payments | local mock — **no gateway, no money** |
 | ElevenLabs / Higgsfield / Vapi | not wired; the canvas counts content rows the seed creates |
 | Profile, level progress, coach history | real, stored in the database |
-| The seven other AI tools and the two courses | not built here — their cards carry a **به‌زودی** badge rather than pretending |
+| The two courses, subscription management, privacy settings, sign-out | not built here — they carry a **به‌زودی** badge rather than pretending |
 
 Copy `.env.example` to `.env` to turn any of these on. `.env` is gitignored;
 never commit a token.
@@ -111,13 +115,26 @@ conditional on having a key.
 | `npm run seed -- --fresh` | rebuild the sample database |
 | `npm run build` | typecheck and production bundle |
 
+## Authentication
+
+Off by default. Set `APP_PASSWORD` (or a pre-computed `APP_PASSWORD_HASH`) and
+the API guards every route except `GET /api/health`, `/api/auth/*`, the webhooks
+and the checkout page, while the app shows a login screen. The password is
+verified with `scrypt` against a random salt, the session token is HMAC-signed
+with an expiry, and it travels in an `HttpOnly; SameSite=Lax` cookie. Five failed
+attempts from one address earn a fifteen-minute lockout.
+
+Sessions live in memory, so a restart signs everyone out. That is deliberate —
+no schema change, no database access from the auth layer — but it is worth
+knowing before you rely on it.
+
 ## Before deploying this
 
-The dashboard and the API have **no authentication** — they are built for
-`127.0.0.1`. Put an auth layer in front of both before exposing them. The
-Telegram webhook is protected by a secret path segment, and the generic
-`POST /api/webhooks/:channel` requires an HMAC signature once
-`WEBHOOK_SIGNING_SECRET` is set.
+Set a password. Then two things still need attention:
+`POST /api/webhooks/payment` carries neither a secret path nor an HMAC, so
+anyone who can reach it can claim a mock payment happened; and the API sends
+`access-control-allow-origin: *` without credentials, so cookie auth only works
+same-origin.
 
 Built with Vite, React, TypeScript, Tailwind CSS, `@xyflow/react`, Fastify and
 `node:sqlite`.

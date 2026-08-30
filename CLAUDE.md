@@ -102,20 +102,33 @@ src/
 | Profile, level progress, coach history | real, in the database |
 | Telegram | real delivery with `TELEGRAM_BOT_TOKEN` |
 | Instagram / LinkedIn / YouTube / Website | signed webhook in; outbound is recorded, not delivered |
-| Coach and outreach copy | Claude with `ANTHROPIC_API_KEY`, templates otherwise |
+| Coach, outreach copy and the seven AI tools | Claude with `ANTHROPIC_API_KEY`, templates otherwise |
 | Checkout | local mock — no gateway, no money |
-| The seven other AI tools, the two courses, subscription, sign-out | not built; `<SoonBadge />` |
+| Authentication | real, **opt-in** — off unless `APP_PASSWORD` or `APP_PASSWORD_HASH` is set |
+| The two courses, subscription management, privacy settings, sign-out | not built; `<SoonBadge />` |
 
 Keep this table honest. If you build one of these, move the row and update the
 README in the same commit.
 
 ## Security
 
-The app and API have **no authentication** and are built for `127.0.0.1`.
-Anything that would be exposed publicly needs an auth layer first. The Telegram
-webhook is protected by a secret path segment; the generic
+Authentication is **opt-in**: with no `APP_PASSWORD` (or `APP_PASSWORD_HASH`)
+the guard is a complete no-op and the app behaves as it does on a bare
+checkout. Set one before exposing anything. `registerAuth(app)` is called
+directly in `buildServer()`, **not** through `app.register` — a plugin body
+would encapsulate the `preHandler` in a child context and every route would
+answer unguarded.
+
+Sessions are in memory, so a restart signs everyone out, and the failed-login
+lockout is per process. `server/auth.ts` reads its variables from
+`process.env` at call time rather than from `env.ts`, deliberately, so tests
+can toggle them.
+
+The Telegram webhook is protected by a secret path segment; the generic
 `POST /api/webhooks/:channel` requires an HMAC signature when
-`WEBHOOK_SIGNING_SECRET` is set.
+`WEBHOOK_SIGNING_SECRET` is set. **`POST /api/webhooks/payment` has neither**,
+so on a public deployment anyone can claim a mock payment happened — a
+pre-existing gap, and the first one to close.
 
 ## Working with Claude
 

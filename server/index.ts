@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import { env, hasClaude, hasTelegram } from './env.ts'
 import { db } from './db/index.ts'
 import { adapterStatus } from './adapters/registry.ts'
+import { registerAuth } from './auth.ts'
 import { startWorker } from './jobs/worker.ts'
 import health from './routes/health.ts'
 import leads from './routes/leads.ts'
@@ -12,6 +13,8 @@ import stream from './routes/stream.ts'
 import webhooks from './routes/webhooks.ts'
 import checkout from './routes/checkout.ts'
 import appRoutes from './routes/app.ts'
+import authRoutes from './routes/auth.ts'
+import toolRoutes from './routes/tools.ts'
 
 export async function buildServer() {
   const app = Fastify({ logger: false })
@@ -24,7 +27,12 @@ export async function buildServer() {
     try {
       done(null, JSON.parse(raw))
     } catch (error) {
-      done(error as Error, undefined)
+      // A bare SyntaxError has no statusCode, so Fastify's default handler
+      // would report a malformed client request as a 500. Stamp it, the way
+      // Fastify's own JSON parser does, so a truncated POST reads as a 400.
+      const parseError = error as Error & { statusCode?: number }
+      parseError.statusCode = 400
+      done(parseError, undefined)
     }
   })
 
@@ -37,6 +45,12 @@ export async function buildServer() {
   app.options('/api/*', async (_request, reply) => reply.code(204).send())
 
   db()
+
+  // Called directly, not through app.register: a plugin body would encapsulate
+  // the preHandler in a child context and every route would answer unguarded.
+  registerAuth(app)
+
+  await app.register(authRoutes)
   await app.register(health)
   await app.register(leads)
   await app.register(pipeline)
@@ -44,6 +58,7 @@ export async function buildServer() {
   await app.register(webhooks)
   await app.register(checkout)
   await app.register(appRoutes)
+  await app.register(toolRoutes)
   return app
 }
 

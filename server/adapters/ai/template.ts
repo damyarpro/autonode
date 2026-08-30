@@ -1,5 +1,6 @@
 import type { TemplateKey } from '../../domain/sequences.ts'
-import type { AiAdapter, CoachInput, DraftInput, NextBestAction } from '../types.ts'
+import { templateRun } from '../../tools/templates.ts'
+import type { AiAdapter, CoachInput, DraftInput, NextBestAction, ToolRunInput } from '../types.ts'
 
 type Copy = { fa: string; en: string }
 
@@ -107,6 +108,10 @@ export const templateAi: AiAdapter = {
         ? `You are on level ${context.levelId} of 7 (${context.percent}% overall).`
         : `شما روی سطح ${fa(context.levelId)} از ۷ هستید (${fa(context.percent)}٪ کل مسیر).`
     return `${copy}\n\n${where}`
+  },
+
+  async runTool({ spec, inputs, locale }: ToolRunInput) {
+    return templateRun(spec, inputs, locale)
   },
 
   async nextBestAction({ lead }): Promise<NextBestAction> {

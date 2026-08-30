@@ -11,6 +11,7 @@ import type {
   Stage,
 } from '../types.ts'
 import { emptyFacts, type PipelineFacts } from '../domain/pipeline-view.ts'
+import type { ToolRun, ToolRunResult } from '../../shared/aiToolSpecs.ts'
 
 const rows = <T>(sql: string, ...params: unknown[]): T[] =>
   db().prepare(sql).all(...(params as never[])) as T[]
@@ -275,3 +276,52 @@ export function gatherFacts(): PipelineFacts {
 
   return facts
 }
+
+// ── ai tool runs ─────────────────────────────────────────────────────────
+
+type ToolRunRow = {
+  id: number
+  tool_id: string
+  inputs_json: string
+  result_json: string
+  produced_by: string
+  at: string
+}
+
+/** The two JSON columns come back as the shapes shared/aiToolSpecs.ts declares. */
+const toToolRun = (record: ToolRunRow): ToolRun => ({
+  id: record.id,
+  toolId: record.tool_id,
+  inputs: JSON.parse(record.inputs_json) as Record<string, string>,
+  result: JSON.parse(record.result_json) as ToolRunResult,
+  at: record.at,
+})
+
+export function saveToolRun(
+  toolId: string,
+  inputs: Record<string, string>,
+  result: ToolRunResult,
+): ToolRun {
+  const id = Number(
+    run(
+      'INSERT INTO tool_runs (tool_id, inputs_json, result_json, produced_by) VALUES (?, ?, ?, ?)',
+      toolId,
+      JSON.stringify(inputs),
+      JSON.stringify(result),
+      result.producedBy,
+    ).lastInsertRowid,
+  )
+  return toToolRun(row<ToolRunRow>('SELECT * FROM tool_runs WHERE id = ?', id)!)
+}
+
+/** Newest first — the tool page shows the last run above the older ones. */
+export const listToolRuns = (toolId: string, limit = 10): ToolRun[] =>
+  rows<ToolRunRow>(
+    'SELECT * FROM tool_runs WHERE tool_id = ? ORDER BY id DESC LIMIT ?',
+    toolId,
+    limit,
+  ).map(toToolRun)
+
+/** False when there was no such run to delete. */
+export const deleteToolRun = (id: number): boolean =>
+  Number(run('DELETE FROM tool_runs WHERE id = ?', id).changes) > 0
