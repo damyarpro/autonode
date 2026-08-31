@@ -11,7 +11,18 @@ import type {
   Stage,
 } from '../types.ts'
 import { emptyFacts, type PipelineFacts } from '../domain/pipeline-view.ts'
+import {
+  emptyBusiness,
+  emptyDestinations,
+  normalizeDestinations,
+  TONES,
+  type BusinessProfile,
+  type ChannelDestinations,
+  type Tone,
+} from '../domain/business.ts'
 import type { ToolRun, ToolRunResult } from '../../shared/aiToolSpecs.ts'
+import type { CallBrief } from '../domain/booking.ts'
+import { isStatus, type ContentKind, type ContentRecord, type ContentStatus } from '../domain/content.ts'
 
 const rows = <T>(sql: string, ...params: unknown[]): T[] =>
   db().prepare(sql).all(...(params as never[])) as T[]
@@ -233,6 +244,8 @@ export function gatherFacts(): PipelineFacts {
     if (CHANNELS.includes(entry.source)) facts.touchesByChannel[entry.source] = Number(entry.n)
   }
 
+  facts.publishedByChannel = publishedContentByChannel()
+
   facts.totalLeads = count('SELECT COUNT(*) AS n FROM leads')
   facts.identified = count(
     `SELECT COUNT(*) AS n FROM leads WHERE COALESCE(name, '') <> '' OR COALESCE(handle, '') <> ''`,
@@ -249,6 +262,7 @@ export function gatherFacts(): PipelineFacts {
   facts.crmRecords = count('SELECT COUNT(*) AS n FROM lead_events')
   facts.meetingsBooked = count("SELECT COUNT(*) AS n FROM lead_events WHERE type = 'call_booked'")
   facts.callsCompleted = count("SELECT COUNT(*) AS n FROM lead_events WHERE type = 'call_completed'")
+  facts.callsPrepared = count('SELECT COUNT(*) AS n FROM calls')
   facts.voiceCalls = count("SELECT COUNT(*) AS n FROM lead_events WHERE type IN ('call_booked','call_completed')")
 
   facts.openDealValueToman = count(
@@ -325,3 +339,582 @@ export const listToolRuns = (toolId: string, limit = 10): ToolRun[] =>
 /** False when there was no such run to delete. */
 export const deleteToolRun = (id: number): boolean =>
   Number(run('DELETE FROM tool_runs WHERE id = ?', id).changes) > 0
+
+// ── business profile ─────────────────────────────────────────────────────
+
+type BusinessRow = {
+  name: string
+  what_we_sell: string
+  audience: string
+  tone: string
+  price_toman: number
+  channels_json: string
+  cta_url: string | null
+  notes: string | null
+}
+
+/** Reads the single row, creating it on first access. */
+export function getBusiness(): BusinessProfile {
+  run('INSERT OR IGNORE INTO business_profile (id) VALUES (1)')
+  const found = row<BusinessRow>('SELECT * FROM business_profile WHERE id = 1')
+  if (!found) return emptyBusiness()
+
+  let channels: Channel[] = []
+  try {
+    const parsed: unknown = JSON.parse(found.channels_json)
+    if (Array.isArray(parsed)) channels = parsed.filter((c): c is Channel => CHANNELS.includes(c as Channel))
+  } catch {
+    // A hand-edited row should not take the whole profile down.
+  }
+
+  return {
+    name: found.name,
+    whatWeSell: found.what_we_sell,
+    audience: found.audience,
+    tone: TONES.includes(found.tone as Tone) ? (found.tone as Tone) : 'friendly',
+    priceToman: Number(found.price_toman) || 0,
+    channels,
+    ctaUrl: found.cta_url,
+    notes: found.notes,
+    destinations: readDestinations(),
+  }
+}
+
+export function saveBusiness(patch: Partial<BusinessProfile>): BusinessProfile {
+  const current = getBusiness()
+  const next = { ...current, ...patch }
+  run(
+    `UPDATE business_profile SET name = ?, what_we_sell = ?, audience = ?, tone = ?,
+       price_toman = ?, channels_json = ?, cta_url = ?, notes = ?, updated_at = datetime('now')
+     WHERE id = 1`,
+    next.name,
+    next.whatWeSell,
+    next.audience,
+    next.tone,
+    Math.max(0, Math.round(next.priceToman)),
+    JSON.stringify(next.channels),
+    next.ctaUrl,
+    next.notes,
+  )
+  writeDestinations(next.destinations)
+  return getBusiness()
+}
+
+// ── content ──────────────────────────────────────────────────────────────
+
+type ContentRow = {
+  id: number
+  kind: string
+  channel: string | null
+  title: string
+  body: string
+  locale: string
+  angle: string | null
+  target: string | null
+  status: string
+  due_at: string
+  published_at: string | null
+  produced_by: string
+  note: string | null
+  created_at: string
+}
+
+const CONTENT_SELECT = `SELECT p.id, p.kind, p.channel, p.title, p.created_at,
+         s.body, s.locale, s.angle, s.target, s.status, s.due_at, s.published_at,
+         s.produced_by, s.note
+    FROM content_pieces p JOIN content_schedule s ON s.content_piece_id = p.id`
+
+/** A seeded piece has no schedule row, so it never reaches the publisher. */
+const toContent = (record: ContentRow): ContentRecord => ({
+  id: record.id,
+  kind: record.kind as ContentKind,
+  channel: (record.channel ?? 'website') as Channel,
+  title: record.title,
+  body: record.body,
+  locale: record.locale,
+  angle: record.angle,
+  target: record.target,
+  status: (isStatus(record.status) ? record.status : 'pending') as ContentStatus,
+  dueAt: record.due_at,
+  publishedAt: record.published_at,
+  producedBy: record.produced_by,
+  note: record.note,
+  createdAt: record.created_at,
+})
+
+export type NewContentPiece = {
+  kind: ContentKind
+  channel: Channel
+  title: string
+  body: string
+  locale: string
+  angle: string | null
+  dueAt: Date
+  target?: string | null
+  producedBy: string
+}
+
+/** Writes both halves — what the piece is, and when it goes out. */
+export function insertContentPiece(piece: NewContentPiece): ContentRecord {
+  const id = Number(
+    run(
+      "INSERT INTO content_pieces (kind, channel, title, status) VALUES (?, ?, ?, 'pending')",
+      piece.kind,
+      piece.channel,
+      piece.title,
+    ).lastInsertRowid,
+  )
+  run(
+    `INSERT INTO content_schedule (content_piece_id, body, locale, angle, target, due_at, produced_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    piece.body,
+    piece.locale,
+    piece.angle,
+    piece.target ?? null,
+    piece.dueAt.toISOString(),
+    piece.producedBy,
+  )
+  return getContentPiece(id)!
+}
+
+export const getContentPiece = (id: number): ContentRecord | undefined => {
+  const found = row<ContentRow>(`${CONTENT_SELECT} WHERE p.id = ?`, id)
+  return found ? toContent(found) : undefined
+}
+
+export function listContent(
+  filter: { status?: ContentStatus; channel?: Channel; limit?: number } = {},
+): ContentRecord[] {
+  const where: string[] = []
+  const params: unknown[] = []
+  if (filter.status) (where.push('s.status = ?'), params.push(filter.status))
+  if (filter.channel) (where.push('p.channel = ?'), params.push(filter.channel))
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  params.push(filter.limit ?? 50)
+  return rows<ContentRow>(
+    `${CONTENT_SELECT} ${clause} ORDER BY s.due_at DESC, p.id DESC LIMIT ?`,
+    ...params,
+  ).map(toContent)
+}
+
+/** Everything still pending whose hour has come. Oldest first. */
+export const dueContent = (now = new Date(), limit = 25): ContentRecord[] =>
+  rows<ContentRow>(
+    `${CONTENT_SELECT} WHERE s.status = 'pending' AND s.due_at <= ? ORDER BY s.due_at ASC, p.id ASC LIMIT ?`,
+    now.toISOString(),
+    limit,
+  ).map(toContent)
+
+/** The outcome of one publish attempt, mirrored onto the piece itself. */
+export function markContentStatus(id: number, status: ContentStatus, note: string | null = null): void {
+  run(
+    `UPDATE content_schedule SET status = ?, note = ?,
+       published_at = CASE WHEN ? = 'pending' THEN NULL ELSE datetime('now') END
+     WHERE content_piece_id = ?`,
+    status,
+    note,
+    status,
+    id,
+  )
+  run('UPDATE content_pieces SET status = ? WHERE id = ?', status, id)
+}
+
+export const countContent = (status: ContentStatus): number =>
+  count('SELECT COUNT(*) AS n FROM content_schedule WHERE status = ?', status)
+
+/** The schedule row goes with it, through the foreign key. */
+export const deleteContentPiece = (id: number): boolean =>
+  Number(run('DELETE FROM content_pieces WHERE id = ?', id).changes) > 0
+
+/** What each channel node's publish hop has actually put out. */
+export function publishedContentByChannel(): Record<Channel, number> {
+  const totals = Object.fromEntries(CHANNELS.map((channel) => [channel, 0])) as Record<Channel, number>
+  for (const entry of rows<{ channel: Channel; n: number }>(
+    `SELECT p.channel AS channel, COUNT(*) AS n
+       FROM content_pieces p JOIN content_schedule s ON s.content_piece_id = p.id
+      WHERE s.status IN ('sent', 'simulated') GROUP BY p.channel`,
+  )) {
+    if (CHANNELS.includes(entry.channel)) totals[entry.channel] = Number(entry.n)
+  }
+  return totals
+}
+
+// ── media ────────────────────────────────────────────────────────────────
+// The import sits here rather than at the top because this section is appended
+// as a block; TypeScript reads it the same either way.
+
+import type {
+  AdVideoResult,
+  MediaJob,
+  MediaKind,
+  MediaStatus,
+  VoiceoverResult,
+} from '../adapters/media/types.ts'
+
+type MediaJobRow = {
+  id: number
+  kind: string
+  status: string
+  adapter: string
+  locale: string
+  input_json: string
+  output_json: string
+  external_id: string | null
+  url: string | null
+  duration_sec: number | null
+  at: string
+}
+
+/** A hand-edited or half-written row must not take the media list down. */
+const parse = <T>(json: string, fallback: T): T => {
+  try {
+    return JSON.parse(json) as T
+  } catch {
+    return fallback
+  }
+}
+
+const toMediaJob = (row: MediaJobRow): MediaJob => ({
+  id: row.id,
+  kind: row.kind as MediaKind,
+  status: row.status as MediaStatus,
+  adapter: row.adapter,
+  locale: row.locale,
+  input: parse<Record<string, unknown>>(row.input_json, {}),
+  output: parse<VoiceoverResult | AdVideoResult>(row.output_json, { status: 'failed' as const }),
+  externalId: row.external_id,
+  url: row.url,
+  durationSec: row.duration_sec === null ? null : Number(row.duration_sec),
+  at: row.at,
+})
+
+export type SaveMediaJobInput = {
+  kind: MediaKind
+  status: MediaStatus
+  adapter: string
+  locale: string
+  input: Record<string, unknown>
+  output: VoiceoverResult | AdVideoResult
+  externalId?: string | null
+  url?: string | null
+  durationSec?: number | null
+}
+
+export function saveMediaJob(job: SaveMediaJobInput): MediaJob {
+  const id = Number(
+    run(
+      `INSERT INTO media_jobs (kind, status, adapter, locale, input_json, output_json, external_id, url, duration_sec)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      job.kind,
+      job.status,
+      job.adapter,
+      job.locale,
+      JSON.stringify(job.input),
+      JSON.stringify(job.output),
+      job.externalId ?? null,
+      job.url ?? null,
+      job.durationSec ?? null,
+    ).lastInsertRowid,
+  )
+  return toMediaJob(row<MediaJobRow>('SELECT * FROM media_jobs WHERE id = ?', id)!)
+}
+
+/** Newest first, optionally one kind only — the board shows the last runs. */
+export const listMediaJobRows = (limit = 20, kind?: MediaKind): MediaJob[] =>
+  (kind
+    ? rows<MediaJobRow>('SELECT * FROM media_jobs WHERE kind = ? ORDER BY id DESC LIMIT ?', kind, limit)
+    : rows<MediaJobRow>('SELECT * FROM media_jobs ORDER BY id DESC LIMIT ?', limit)
+  ).map(toMediaJob)
+
+export const getMediaJob = (id: number): MediaJob | undefined => {
+  const found = row<MediaJobRow>('SELECT * FROM media_jobs WHERE id = ?', id)
+  return found ? toMediaJob(found) : undefined
+}
+
+/** False when there was no such job to delete. */
+export const deleteMediaJob = (id: number): boolean =>
+  Number(run('DELETE FROM media_jobs WHERE id = ?', id).changes) > 0
+
+// ── calls ────────────────────────────────────────────────────────────────
+
+/**
+ * `lead_events.at` is written by SQLite's own `datetime('now')`, so a cutoff
+ * compared against it has to be in the same `YYYY-MM-DD HH:MM:SS` shape. The
+ * columns this section owns store full ISO instants instead, because a meeting
+ * is an instant and not a wall-clock reading.
+ */
+const sqlTime = (at: Date) => at.toISOString().slice(0, 19).replace('T', ' ')
+
+export type CallRow = {
+  id: number
+  lead_id: number
+  provider: string
+  status: string
+  external_id: string | null
+  brief_json: string
+  produced_by: string
+  at: string
+}
+
+export type CallRecord = Omit<CallRow, 'brief_json'> & { brief: CallBrief }
+
+export type Booking = {
+  id: number
+  lead_id: number
+  start_at: string
+  minutes: number
+  status: string
+  note: string | null
+  created_at: string
+}
+
+export type CallReminderRow = {
+  id: number
+  booking_id: number
+  due_at: string
+  status: string
+  sent_at: string | null
+  lead_id: number
+  start_at: string
+  minutes: number
+}
+
+const toCall = (record: CallRow): CallRecord => {
+  const { brief_json, ...rest } = record
+  return { ...rest, brief: JSON.parse(brief_json) as CallBrief }
+}
+
+export function recordCall(input: {
+  leadId: number
+  provider: string
+  status: string
+  externalId?: string | null
+  brief: CallBrief
+}): CallRecord {
+  const id = Number(
+    run(
+      `INSERT INTO calls (lead_id, provider, status, external_id, brief_json, produced_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      input.leadId,
+      input.provider,
+      input.status,
+      input.externalId ?? null,
+      JSON.stringify(input.brief),
+      input.brief.producedBy,
+    ).lastInsertRowid,
+  )
+  return toCall(row<CallRow>('SELECT * FROM calls WHERE id = ?', id)!)
+}
+
+export const listCalls = (limit = 20): CallRecord[] =>
+  rows<CallRow>('SELECT * FROM calls ORDER BY id DESC LIMIT ?', limit).map(toCall)
+
+export const leadCalls = (leadId: number, limit = 10): CallRecord[] =>
+  rows<CallRow>('SELECT * FROM calls WHERE lead_id = ? ORDER BY id DESC LIMIT ?', leadId, limit).map(toCall)
+
+export function createBooking(leadId: number, startAt: Date, minutes: number, note?: string): Booking {
+  const id = Number(
+    run(
+      'INSERT INTO bookings (lead_id, start_at, minutes, note) VALUES (?, ?, ?, ?)',
+      leadId,
+      startAt.toISOString(),
+      minutes,
+      note ?? null,
+    ).lastInsertRowid,
+  )
+  return row<Booking>('SELECT * FROM bookings WHERE id = ?', id)!
+}
+
+/** Everything still on the calendar from `from` on — the input to slot maths. */
+export const bookingsFrom = (from: Date, limit = 500): Booking[] =>
+  rows<Booking>(
+    "SELECT * FROM bookings WHERE status = 'booked' AND start_at >= ? ORDER BY start_at ASC LIMIT ?",
+    from.toISOString(),
+    limit,
+  )
+
+export const listBookings = (limit = 20): Booking[] =>
+  rows<Booking>('SELECT * FROM bookings ORDER BY start_at DESC LIMIT ?', limit)
+
+export const scheduleReminder = (bookingId: number, dueAt: Date) =>
+  run('INSERT INTO call_reminders (booking_id, due_at) VALUES (?, ?)', bookingId, dueAt.toISOString())
+
+/** Pending reminders whose meeting has not already happened. */
+export const dueCallReminders = (now: Date, limit = 50): CallReminderRow[] =>
+  rows<CallReminderRow>(
+    `SELECT r.*, b.lead_id AS lead_id, b.start_at AS start_at, b.minutes AS minutes
+       FROM call_reminders r JOIN bookings b ON b.id = r.booking_id
+      WHERE r.status = 'pending' AND r.due_at <= ? AND b.status = 'booked' AND b.start_at > ?
+      ORDER BY r.due_at ASC LIMIT ?`,
+    now.toISOString(),
+    now.toISOString(),
+    limit,
+  )
+
+export const markReminderSent = (id: number, status: 'sent' | 'cancelled' = 'sent') =>
+  run("UPDATE call_reminders SET status = ?, sent_at = datetime('now') WHERE id = ?", status, id)
+
+/** Reminders for a meeting that is no longer going ahead are not sent. */
+export const cancelRemindersFor = (bookingId: number) =>
+  run("UPDATE call_reminders SET status = 'cancelled' WHERE booking_id = ? AND status = 'pending'", bookingId)
+
+export const remindersFor = (bookingId: number) =>
+  rows<{ id: number; due_at: string; status: string }>(
+    'SELECT id, due_at, status FROM call_reminders WHERE booking_id = ? ORDER BY due_at ASC',
+    bookingId,
+  )
+
+/**
+ * Customers who took delivery before `before` and have never been asked for a
+ * referral. The `NOT EXISTS` is the read half of ask-once; `claimReferralAsk`
+ * is the write half.
+ */
+export const leadsAwaitingReferralAsk = (before: Date, limit = 25): Lead[] =>
+  rows<Lead>(
+    `SELECT l.* FROM leads l
+      WHERE l.stage IN ('delivered', 'advocate')
+        AND NOT EXISTS (SELECT 1 FROM referral_asks r WHERE r.lead_id = l.id)
+        AND EXISTS (SELECT 1 FROM lead_events e
+                     WHERE e.lead_id = l.id AND e.type = 'delivered' AND e.at <= ?)
+      ORDER BY l.id ASC LIMIT ?`,
+    sqlTime(before),
+    limit,
+  )
+
+/**
+ * Claims the one referral ask this lead will ever get. False means someone —
+ * an earlier pass, a concurrent one — already has it, and nothing should be
+ * sent. Claiming before sending is what makes a repeated pass a no-op.
+ */
+export const claimReferralAsk = (leadId: number): boolean =>
+  Number(run('INSERT OR IGNORE INTO referral_asks (lead_id) VALUES (?)', leadId).changes) > 0
+
+export const setReferralAskStatus = (leadId: number, status: string) =>
+  run('UPDATE referral_asks SET status = ? WHERE lead_id = ?', status, leadId)
+
+export const referralAskFor = (leadId: number) =>
+  row<{ lead_id: number; status: string; at: string }>('SELECT * FROM referral_asks WHERE lead_id = ?', leadId)
+
+/** The three numbers the vapi, salescall and referral nodes can now measure. */
+export const callCounts = () => ({
+  calls: count('SELECT COUNT(*) AS n FROM calls'),
+  meetings: count("SELECT COUNT(*) AS n FROM bookings WHERE status = 'booked'"),
+  referralAsks: count('SELECT COUNT(*) AS n FROM referral_asks'),
+})
+
+/**
+ * The deal a payment claims to be for. The payment webhook reads it so a token
+ * that was valid for one checkout cannot confirm a different amount.
+ */
+export function dealById(dealId: number): { id: number; lead_id: number; amount_toman: number; stage: string } | undefined {
+  return db()
+    .prepare('SELECT id, lead_id, amount_toman, stage FROM deals WHERE id = ?')
+    .get(dealId) as { id: number; lead_id: number; amount_toman: number; stage: string } | undefined
+}
+
+
+// ── publishing destinations ──────────────────────────────────────────────
+// A satellite of business_profile, read and written as part of the profile so
+// callers only ever see one shape. Kept here at the end because the table came
+// after the row it belongs to.
+
+/** Reads the destinations blob, creating the single row on first access. */
+function readDestinations(): ChannelDestinations {
+  run('INSERT OR IGNORE INTO business_destinations (id) VALUES (1)')
+  const found = row<{ destinations_json: string }>(
+    'SELECT destinations_json FROM business_destinations WHERE id = 1',
+  )
+  if (!found) return emptyDestinations()
+
+  try {
+    // `normalizeDestinations` drops anything that is not a channel we know, so
+    // a profile saved before this existed reads back as every channel unset.
+    return normalizeDestinations(JSON.parse(found.destinations_json))
+  } catch {
+    // A hand-edited row should not take the whole profile down.
+    return emptyDestinations()
+  }
+}
+
+/** Writes them back normalized, so nothing reaches the column we cannot read. */
+function writeDestinations(destinations: ChannelDestinations): void {
+  run('INSERT OR IGNORE INTO business_destinations (id) VALUES (1)')
+  run(
+    "UPDATE business_destinations SET destinations_json = ?, updated_at = datetime('now') WHERE id = 1",
+    JSON.stringify(normalizeDestinations(destinations)),
+  )
+}
+
+/**
+ * Records where a piece actually went. The address is resolved when the piece
+ * publishes, not when it is written, so this is history rather than derived
+ * state: the profile may name a different address tomorrow and this row must
+ * still say where this piece was delivered.
+ */
+export const setContentTarget = (id: number, target: string | null): void => {
+  run('UPDATE content_schedule SET target = ? WHERE content_piece_id = ?', target, id)
+}
+
+// ── call outcomes ────────────────────────────────────────────────────────
+
+export type CallOutcomeRow = {
+  call_id: number
+  status: string
+  ended_reason: string | null
+  seconds: number | null
+  recording_url: string | null
+  transcript: string | null
+  summary: string | null
+  raw_json: string
+  at: string
+}
+
+/**
+ * The call a provider's report is about. Newest first: an id is the provider's
+ * to reuse, and the most recent row is the one that was just on the phone.
+ */
+export const callByExternalId = (externalId: string): CallRecord | undefined => {
+  const found = row<CallRow>('SELECT * FROM calls WHERE external_id = ? ORDER BY id DESC LIMIT 1', externalId)
+  return found ? toCall(found) : undefined
+}
+
+export const callOutcomeFor = (callId: number): CallOutcomeRow | undefined =>
+  row<CallOutcomeRow>('SELECT * FROM call_outcomes WHERE call_id = ?', callId)
+
+export type SaveCallOutcomeInput = {
+  callId: number
+  status: string
+  endedReason?: string | null
+  seconds?: number | null
+  recordingUrl?: string | null
+  transcript?: string | null
+  summary?: string | null
+  raw: unknown
+}
+
+/** Upsert, because a provider that gets no answer sends the report again. */
+export function saveCallOutcome(input: SaveCallOutcomeInput): CallOutcomeRow {
+  run(
+    `INSERT INTO call_outcomes (call_id, status, ended_reason, seconds, recording_url, transcript, summary, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (call_id) DO UPDATE SET
+       status = excluded.status,
+       ended_reason = excluded.ended_reason,
+       seconds = excluded.seconds,
+       recording_url = excluded.recording_url,
+       transcript = excluded.transcript,
+       summary = excluded.summary,
+       raw_json = excluded.raw_json,
+       at = datetime('now')`,
+    input.callId,
+    input.status,
+    input.endedReason ?? null,
+    input.seconds ?? null,
+    input.recordingUrl ?? null,
+    input.transcript ?? null,
+    input.summary ?? null,
+    JSON.stringify(input.raw ?? null),
+  )
+  return callOutcomeFor(input.callId)!
+}

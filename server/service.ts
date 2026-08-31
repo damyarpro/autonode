@@ -2,6 +2,7 @@ import { env } from './env.ts'
 import * as q from './db/queries.ts'
 import { publish } from './events.ts'
 import { scoreLead } from './domain/scoring.ts'
+import { signCheckout } from './domain/checkout-token.ts'
 import { advanceStage, EVENT_EDGE, routeForScore } from './domain/routing.ts'
 import { planSteps, stepDef } from './domain/sequences.ts'
 import { ai, channelFor, payments } from './adapters/registry.ts'
@@ -161,7 +162,12 @@ export async function startCheckout(leadId: number, amountToman = DEFAULT_DEAL_T
   fire('checkout.started', lead, { nodeId: 'payment' })
 
   rescore(leadId)
-  return { ...checkout, dealId, amountToman }
+
+  // The token is what makes the confirmation endpoint unforgeable; it travels
+  // with the checkout link and comes back with the confirmation.
+  const token = signCheckout({ leadId, dealId, ref: checkout.ref, amountToman }, env.checkoutSigningSecret)
+  const url = `${checkout.url}&token=${token}`
+  return { ...checkout, url, dealId, amountToman, token }
 }
 
 /**

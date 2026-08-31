@@ -7,6 +7,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type Edge,
+  type NodeMouseHandler,
   type OnInit,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -36,9 +37,11 @@ export type CanvasProps = {
   pulses: Record<string, number>
   /** Node ids touched by the latest events, highlighted briefly. */
   hotNodes: Record<string, number>
+  /** Tapping a card asks the page to explain that node. */
+  onOpenNode: (nodeId: string) => void
 }
 
-function Canvas({ metrics, pulses, hotNodes }: CanvasProps) {
+function Canvas({ metrics, pulses, hotNodes, onOpenNode }: CanvasProps) {
   const { t, isRtl } = useI18n()
 
   // A hit highlights its node for a moment, then clears itself.
@@ -93,6 +96,11 @@ function Canvas({ metrics, pulses, hotNodes }: CanvasProps) {
     [isRtl, metrics, flash],
   )
 
+  const onNodeClick = useCallback<NodeMouseHandler<StageFlowNode>>(
+    (_event, node) => onOpenNode(node.id),
+    [onOpenNode],
+  )
+
   const flowEdges = useMemo<Edge[]>(
     () =>
       edgeData.map((edge, i) => {
@@ -133,6 +141,7 @@ function Canvas({ metrics, pulses, hotNodes }: CanvasProps) {
       proOptions={{ hideAttribution: true }}
       nodesConnectable={false}
       elementsSelectable
+      onNodeClick={onNodeClick}
     >
       <Background variant={BackgroundVariant.Dots} gap={26} size={1} color="rgba(255,255,255,0.06)" />
       <Controls position="bottom-left" showInteractive={false} />

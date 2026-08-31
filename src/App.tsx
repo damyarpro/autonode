@@ -1,12 +1,16 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from './i18n/I18nProvider'
-import { useSession } from './api/useSession'
+import { SessionProvider, useSessionContext } from './api/SessionProvider'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import AiCoach from './pages/AiCoach'
 import Tools from './pages/Tools'
+import Business from './pages/Business'
+import Content from './pages/Content'
+import Calls from './pages/Calls'
+import Studio from './pages/Studio'
 import AiToolPage from './pages/AiToolPage'
 import SalesAutomation from './pages/SalesAutomation'
 import Leads from './pages/Leads'
@@ -18,7 +22,7 @@ import Inbox from './pages/Inbox'
  * on an empty environment.
  */
 function Gate() {
-  const session = useSession()
+  const session = useSessionContext()
 
   if (session.loading) return null
   if (session.enabled && !session.authenticated) return <Login login={session.login} />
@@ -34,6 +38,14 @@ function Gate() {
         <Route path="/tools" element={<Tools />} />
         <Route path="/tools/:toolId" element={<AiToolPage />} />
 
+        {/* The business profile every AI feature reads. Reached from Profile. */}
+        <Route path="/business" element={<Business />} />
+
+        {/* One page per group of board nodes, reached by tapping the node. */}
+        <Route path="/content" element={<Content />} />
+        <Route path="/calls" element={<Calls />} />
+        <Route path="/studio" element={<Studio />} />
+
         {/* The sales-automation tool, reached from the tools grid. */}
         <Route path="/sales-automation" element={<SalesAutomation />} />
         <Route path="/leads" element={<Leads />} />
@@ -48,7 +60,9 @@ function Gate() {
 export default function App() {
   return (
     <I18nProvider>
-      <Gate />
+      <SessionProvider>
+        <Gate />
+      </SessionProvider>
     </I18nProvider>
   )
 }

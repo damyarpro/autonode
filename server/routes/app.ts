@@ -2,6 +2,16 @@ import type { FastifyInstance } from 'fastify'
 import { db } from '../db/index.ts'
 import { ai } from '../adapters/registry.ts'
 import { clampStages, currentLevel, LEVEL_STAGES, overallPercent, TOTAL_STAGES } from '../domain/levels.ts'
+import {
+  BUSINESS_CHANNELS,
+  checkDestination,
+  missingFields,
+  TONES,
+  type ChannelDestinations,
+  type Tone,
+} from '../domain/business.ts'
+import { getBusiness, saveBusiness } from '../db/queries.ts'
+import { CHANNELS, type Channel } from '../types.ts'
 import type { ChatTurn } from '../adapters/types.ts'
 
 type ProfileRow = {
@@ -32,6 +42,10 @@ function ensureSeedRows(): void {
   const insert = db().prepare('INSERT OR IGNORE INTO level_progress (level_id) VALUES (?)')
   for (const levelId of Object.keys(LEVEL_STAGES)) insert.run(Number(levelId))
 }
+
+/** Narrows a JSON body field to a plain object, so a list or a string is ignored. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const readProgress = () => {
   ensureSeedRows()
@@ -84,6 +98,70 @@ export default async function appRoutes(app: FastifyInstance) {
       )
       .run(...(fields.map(([, value]) => value) as never[]))
     return { ok: true }
+  })
+
+  app.get('/api/business', async () => {
+    const business = getBusiness()
+    return { business, missing: missingFields(business) }
+  })
+
+  app.patch('/api/business', async (request, reply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>
+    const patch: Record<string, unknown> = {}
+
+    const text = (key: string, max: number) => {
+      const value = body[key]
+      if (typeof value === 'string') patch[key] = value.trim().slice(0, max)
+    }
+    text('name', 120)
+    text('whatWeSell', 600)
+    text('audience', 300)
+    text('notes', 600)
+
+    if (typeof body.ctaUrl === 'string') {
+      const url = body.ctaUrl.trim()
+      // A malformed link would end up in generated posts, so reject it here.
+      if (url && !/^https?:\/\/\S+$/.test(url)) return reply.code(400).send({ error: 'invalid input', errors: ['ctaUrl:not_a_url'] })
+      patch.ctaUrl = url || null
+    }
+    if (typeof body.tone === 'string') {
+      if (!TONES.includes(body.tone as Tone)) return reply.code(400).send({ error: 'invalid input', errors: ['tone:not_an_option'] })
+      patch.tone = body.tone
+    }
+    if (body.priceToman !== undefined) {
+      const price = Number(body.priceToman)
+      if (!Number.isFinite(price) || price < 0) return reply.code(400).send({ error: 'invalid input', errors: ['priceToman:not_a_number'] })
+      patch.priceToman = price
+    }
+    if (Array.isArray(body.channels)) {
+      patch.channels = body.channels.filter((c): c is Channel => CHANNELS.includes(c as Channel))
+    }
+    // Where each channel publishes. A channel left out of the object keeps what
+    // is stored, so the form can send one field without clearing the rest; a
+    // blank one is cleared, because "" is not an address. Anything that is not
+    // an object is ignored the way a non-array `channels` is.
+    if (isRecord(body.destinations)) {
+      const given = body.destinations
+      const next: ChannelDestinations = { ...getBusiness().destinations }
+      const errors: string[] = []
+
+      for (const channel of BUSINESS_CHANNELS) {
+        if (!(channel in given)) continue
+        const checked = checkDestination(channel, given[channel])
+        // Every bad field at once: the form shows them as a list, and a save
+        // that fails one field at a time would take five tries to fix five.
+        if (checked.ok) next[channel] = checked.value
+        else errors.push(checked.code)
+      }
+
+      if (errors.length > 0) return reply.code(400).send({ error: 'invalid input', errors })
+      patch.destinations = next
+    }
+
+    if (Object.keys(patch).length === 0) return reply.code(400).send({ error: 'nothing to update' })
+
+    const business = saveBusiness(patch)
+    return { business, missing: missingFields(business) }
   })
 
   app.get('/api/progress', async () => {

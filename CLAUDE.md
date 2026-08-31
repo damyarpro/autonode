@@ -30,16 +30,25 @@ server/
               queries.ts or routes/app.ts; nothing else touches the database.
   adapters/   one interface per external service in types.ts, a real
               implementation and a working fallback, chosen by registry.ts.
+              media/ holds the voice and video pair, voice/ the dialler.
   tools/      the AI tool runner and its offline templates.
+  content/    the content factory: produce, schedule, publish when due.
+  calls/      briefs, slots, bookings, reminders and the referral ask.
+  media/      voice-over and ad-video jobs, persisted and never throwing.
+  jobs/       the worker pass: due nurture steps, due content, due call work.
   routes/     thin HTTP layer. Validate input, call service/queries, return.
   auth.ts     opt-in authentication; a no-op with no password configured.
   service.ts  orchestration: capture → score → route → nurture → sale → loop.
 shared/
   aiToolSpecs.ts   the AI tool contract, imported by both halves.
+  business.ts      the business profile both halves read and write.
 src/
-  data/       brand.ts · tools.ts · levels.ts · pipeline.ts — every list and label.
+  data/       brand.ts · tools.ts · levels.ts · pipeline.ts · nodeGuide.ts —
+              every list, label and node explanation.
   components/ AppShell · TabBar · PageBanner · Card · Icon — shared chrome.
   api/        fetch client and hooks. No component calls fetch directly.
+  i18n/       t()/n() plus errors.ts, which turns the server's field:code
+              answers into sentences.
   pages/      one file per route.
 docs/screenshots/  what the README shows; regenerate with the `shoot` skill.
 ```
@@ -57,10 +66,10 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 
 ## Rules that must hold
 
-1. **One source of truth per list.** Tools, levels, pipeline nodes and their
-   copy live in `src/data/*.ts`. Never hard-code a tool name, a level title or a
-   node label in a component. Adding a tool means editing `tools.ts` and
-   nothing else. The product name is in `src/data/brand.ts`; copy that mentions
+1. **One source of truth per list.** Tools, levels, pipeline nodes, their copy
+   and each node's explanation live in `src/data/*.ts`. Never hard-code a tool
+   name, a level title, a node label or what a node does in a component. Adding
+   a tool means editing `tools.ts` and nothing else. The product name is in `src/data/brand.ts`; copy that mentions
    it writes `{brand}` and passes through `withBrand()`.
 
 2. **Every user-visible string is bilingual.** Type `Bi = { fa: string; en: string }`.
@@ -109,8 +118,9 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 11. **The server does not author user-facing prose.** It cannot satisfy rule 2,
     so validation failures come back as machine-readable `field:code` strings
     (`skills:required`, `business:too_long:600`) and the client — which drew the
-    form from the same spec — turns them into sentences. If you add a code,
-    add its translation in `explainError` in the same commit.
+    form from the same spec — turns them into sentences. Every code passes
+    through `explainCode` in `src/i18n/errors.ts`; if you add one, add its rule
+    or its field label there in the same commit.
 
 ## Conventions
 
@@ -132,13 +142,26 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 | --- | --- |
 | Capture, scoring, routing, nurture, CRM stages, growth loop | real |
 | Profile, level progress, coach history | real, in the database |
+| Business profile | real, at `#/business` — every generated word reads it |
+| Content factory | real, at `#/content` — writes, schedules, publishes when due |
+| Meetings, reminders, referral ask | real, at `#/calls` — slots, bookings, one ask per customer |
+| Call brief | real — the dialling is what needs `VAPI_API_KEY` |
+| Publishing destinations | real, per channel on the business profile; a channel without one cannot publish |
 | Telegram | real delivery with `TELEGRAM_BOT_TOKEN` |
-| Instagram / LinkedIn / YouTube / Website | signed webhook in; outbound is recorded, not delivered |
+| Website out | real with `WEBSITE_PUBLISH_URL` — a signed POST to your own endpoint |
+| LinkedIn out | real with `LINKEDIN_ACCESS_TOKEN`; needs approved API access (never run live from here) |
+| Instagram out | real with `INSTAGRAM_ACCESS_TOKEN`; needs App Review, and refuses text with no media (never run live) |
+| YouTube out | real with a refresh token; needs a Google audit, and refuses a script with no video (never run live) |
+| Inbound on all five | real — signed webhook, or Telegram's secret path |
+| Call outcome | real — `POST /api/webhooks/vapi/:secret` records what happened (never run live) |
 | Coach and outreach copy | Claude with `ANTHROPIC_API_KEY`, templates otherwise |
+| Voice-over | timed, speakable script; real audio with `ELEVENLABS_API_KEY` (never run live from here) |
+| Ad video | shot-by-shot storyboard; real render with `HIGGSFIELD_API_KEY` (never run live from here) |
 | Checkout | local mock — no gateway, no money |
 | Authentication | real, **opt-in** — off unless `APP_PASSWORD` or `APP_PASSWORD_HASH` is set |
 | The seven AI tools | real, at `#/tools/:id` — structured output from Claude, templates otherwise |
-| The two courses, subscription management, privacy settings, sign-out | not built; `<SoonBadge />` |
+| Sign-out | real, when a password is configured — there is no session to end otherwise |
+| The two courses, subscription management, privacy settings | not built; `<SoonBadge />` |
 
 Keep this table honest. If you build one of these, move the row and update the
 README in the same commit.
@@ -159,9 +182,11 @@ can toggle them.
 
 The Telegram webhook is protected by a secret path segment; the generic
 `POST /api/webhooks/:channel` requires an HMAC signature when
-`WEBHOOK_SIGNING_SECRET` is set. **`POST /api/webhooks/payment` has neither**,
-so on a public deployment anyone can claim a mock payment happened — a
-pre-existing gap, and the first one to close.
+`WEBHOOK_SIGNING_SECRET` is set. `POST /api/webhooks/payment` accepts only a
+confirmation carrying the token `startCheckout` signed, and re-reads the deal
+row so a valid token cannot confirm a different amount — the signing key is
+random per boot when `CHECKOUT_SIGNING_SECRET` is unset, so this holds on an
+empty `.env`.
 
 ## Working with Claude
 

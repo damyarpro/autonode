@@ -133,3 +133,140 @@ CREATE TABLE IF NOT EXISTS tool_runs (
   at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS tool_runs_tool ON tool_runs (tool_id, id DESC);
+
+-- What the owner tells us about their business. Every AI call reads this, so a
+-- generated post or call brief is about their offer rather than a generic one.
+CREATE TABLE IF NOT EXISTS business_profile (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  name          TEXT NOT NULL DEFAULT '',
+  what_we_sell  TEXT NOT NULL DEFAULT '',
+  audience      TEXT NOT NULL DEFAULT '',
+  tone          TEXT NOT NULL DEFAULT 'friendly',
+  price_toman   INTEGER NOT NULL DEFAULT 0,
+  channels_json TEXT NOT NULL DEFAULT '[]',
+  cta_url       TEXT,
+  notes         TEXT,
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ── content pipeline ─────────────────────────────────────────────────────
+-- content_pieces above says what a piece is; this says when it goes out and
+-- what happened when it did. One row per piece rather than new columns on
+-- content_pieces: ALTER TABLE in a re-runnable schema file only works once.
+CREATE TABLE IF NOT EXISTS content_schedule (
+  content_piece_id INTEGER PRIMARY KEY REFERENCES content_pieces (id) ON DELETE CASCADE,
+  body             TEXT NOT NULL,
+  locale           TEXT NOT NULL DEFAULT 'fa',
+  angle            TEXT,
+  -- Where a live channel should put it (a Telegram chat id, say). Null means
+  -- the adapter has no address for this piece and can only record it.
+  target           TEXT,
+  due_at           TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending',
+  produced_by      TEXT NOT NULL DEFAULT 'template',
+  published_at     TEXT,
+  note             TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS content_schedule_due ON content_schedule (status, due_at);
+
+-- ── media production ─────────────────────────────────────────────────────
+-- One row per voiceover or ad-video run, whichever half produced it. The row
+-- keeps the input and the whole artefact: with no paid account that artefact
+-- is the timed script or the storyboard, which is real work on its own, so the
+-- ELEVENLABS and HIGGSFIELD nodes count something that exists either way.
+CREATE TABLE IF NOT EXISTS media_jobs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind         TEXT NOT NULL,
+  -- rendered | scripted | storyboarded | failed — never 'rendered' without media.
+  status       TEXT NOT NULL,
+  -- Which adapter answered ('elevenlabs', 'script-only', …), so the UI never guesses.
+  adapter      TEXT NOT NULL,
+  locale       TEXT NOT NULL DEFAULT 'fa',
+  input_json   TEXT NOT NULL,
+  output_json  TEXT NOT NULL,
+  external_id  TEXT,
+  url          TEXT,
+  duration_sec REAL,
+  at           TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS media_jobs_kind ON media_jobs (kind, id DESC);
+
+-- ── calls ────────────────────────────────────────────────────────────────
+-- One row per prepared call. The brief is the work product and exists whether
+-- or not a voice provider ever dialled, so `status` is the honest record of
+-- what happened: dialled by a provider, simulated (brief only), or failed.
+CREATE TABLE IF NOT EXISTS calls (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  lead_id     INTEGER NOT NULL REFERENCES leads (id) ON DELETE CASCADE,
+  provider    TEXT    NOT NULL,
+  status      TEXT    NOT NULL,
+  external_id TEXT,
+  brief_json  TEXT    NOT NULL,
+  produced_by TEXT    NOT NULL,
+  at          TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS calls_lead ON calls (lead_id, id DESC);
+
+-- The meeting itself. `start_at` is UTC ISO; the working window that produced
+-- it lives in server/domain/booking.ts, never in a column.
+CREATE TABLE IF NOT EXISTS bookings (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  lead_id    INTEGER NOT NULL REFERENCES leads (id) ON DELETE CASCADE,
+  start_at   TEXT    NOT NULL,
+  minutes    INTEGER NOT NULL,
+  status     TEXT    NOT NULL DEFAULT 'booked',
+  note       TEXT,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS bookings_start ON bookings (status, start_at);
+CREATE INDEX IF NOT EXISTS bookings_lead ON bookings (lead_id, id DESC);
+
+CREATE TABLE IF NOT EXISTS call_reminders (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id INTEGER NOT NULL REFERENCES bookings (id) ON DELETE CASCADE,
+  due_at     TEXT    NOT NULL,
+  status     TEXT    NOT NULL DEFAULT 'pending',
+  sent_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS call_reminders_due ON call_reminders (status, due_at);
+
+-- One row per lead, ever: the primary key is what makes the referral pass ask
+-- exactly once no matter how often the worker runs.
+CREATE TABLE IF NOT EXISTS referral_asks (
+  lead_id INTEGER PRIMARY KEY REFERENCES leads (id) ON DELETE CASCADE,
+  status  TEXT NOT NULL DEFAULT 'pending',
+  at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ── publishing destinations ──────────────────────────────────────────────
+-- Where each channel publishes: a Telegram chat id, a LinkedIn URN, the URL a
+-- site posts to. A satellite row rather than columns on business_profile, for
+-- the same reason content_schedule sits beside content_pieces — ALTER TABLE in
+-- a re-runnable schema file only works once. A profile stored before this table
+-- existed simply has no row, which reads back as every channel unset.
+CREATE TABLE IF NOT EXISTS business_destinations (
+  id                INTEGER PRIMARY KEY CHECK (id = 1),
+  destinations_json TEXT NOT NULL DEFAULT '{}',
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ── call outcomes ────────────────────────────────────────────────────────
+-- What the voice provider reported once the call was over. One row per call,
+-- so a webhook the provider retries updates rather than duplicates. `raw_json`
+-- is the payload whole: when the parser does not recognise a shape, the honest
+-- record is what arrived, not a guessed outcome. `status` here is the outcome
+-- vocabulary of server/domain/call-outcome.ts, not the dialling status the
+-- `calls` row carries.
+CREATE TABLE IF NOT EXISTS call_outcomes (
+  call_id       INTEGER PRIMARY KEY REFERENCES calls (id) ON DELETE CASCADE,
+  status        TEXT    NOT NULL,
+  ended_reason  TEXT,
+  seconds       REAL,
+  recording_url TEXT,
+  transcript    TEXT,
+  summary       TEXT,
+  raw_json      TEXT    NOT NULL,
+  at            TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS call_outcomes_status ON call_outcomes (status, call_id DESC);

@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon'
 import { brand, withBrand } from '../data/brand'
 import { patchJson } from '../api/client'
 import { useAppState } from '../api/useAppState'
+import { useSessionContext } from '../api/SessionProvider'
 import { useI18n } from '../i18n/I18nProvider'
 
 const COPY = {
@@ -28,8 +29,9 @@ const COPY = {
 
   business: { fa: 'بیزینس', en: 'Business' },
   businessTitle: { fa: 'پروفایل بیزینسی من', en: 'My business profile' },
-  businessSub: { fa: 'نقشه ذهنی توسعه بیزینس', en: 'Business development mind map' },
-  enterProfile: { fa: 'ورود به پروفایل', en: 'Open profile' },
+  businessSub: { fa: 'چیزی که هر متن تولیدشده بر پایه‌ی آن نوشته می‌شود', en: 'What every generated word is based on' },
+  enterProfile: { fa: 'ویرایش پروفایل بیزینسی', en: 'Edit business profile' },
+  openBoard: { fa: 'بوم فروش', en: 'Sales board' },
 
   subscription: { fa: 'اشتراک', en: 'Subscription' },
   subscriptionTitle: { fa: 'اشتراک بدون اشتراک', en: 'No active subscription' },
@@ -53,6 +55,11 @@ const COPY = {
   },
   privacySettings: { fa: 'تنظیمات حریم خصوصی', en: 'Privacy settings' },
   logout: { fa: 'خروج از حساب', en: 'Sign out' },
+  loggingOut: { fa: 'در حال خروج…', en: 'Signing out…' },
+  noSession: {
+    fa: 'وقتی رمزی تنظیم نشده باشد نشستی هم وجود ندارد که از آن خارج شوی.',
+    en: 'With no password configured there is no session to sign out of.',
+  },
 }
 
 function EditForm({
@@ -102,7 +109,20 @@ function EditForm({
 export default function Profile() {
   const { t, num, n, locale } = useI18n()
   const { profile, online, refresh } = useAppState()
+  const session = useSessionContext()
   const [editing, setEditing] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+
+  const signOut = async () => {
+    setLeaving(true)
+    // The gate re-renders the login screen off the shared session, so there is
+    // nothing to navigate to; a failed request leaves the button usable again.
+    try {
+      await session.logout()
+    } finally {
+      setLeaving(false)
+    }
+  }
   useEffect(() => setEditing(false), [profile?.fullName, profile?.phone])
 
   const dash = '—'
@@ -174,8 +194,14 @@ export default function Profile() {
           <Row label={t(COPY.status)} value={t(COPY.active)} />
         </div>
         <div className="mt-3 flex items-center gap-2">
-          <Link to="/sales-automation" className="flex-1">
+          <Link to="/business" className="flex-1">
             <PrimaryButton>{t(COPY.enterProfile)}</PrimaryButton>
+          </Link>
+          <Link
+            to="/sales-automation"
+            className="flex flex-1 items-center justify-center rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
+          >
+            {t(COPY.openBoard)}
           </Link>
         </div>
       </Card>
@@ -245,12 +271,18 @@ export default function Profile() {
 
       <button
         type="button"
-        disabled
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-hairline py-3 text-[12.5px] text-white/30"
+        onClick={signOut}
+        disabled={!session.enabled || leaving}
+        className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-hairline py-3 text-[12.5px] transition ${
+          session.enabled && !leaving ? 'text-white/70 hover:text-white' : 'text-white/30'
+        }`}
       >
         <Icon name="LogOut" size={15} />
-        {t(COPY.logout)}
+        {leaving ? t(COPY.loggingOut) : t(COPY.logout)}
       </button>
+      {!session.enabled && (
+        <p className="mt-2 text-center text-[10.5px] leading-relaxed text-white/30">{t(COPY.noSession)}</p>
+      )}
     </AppShell>
   )
 }

@@ -26,7 +26,7 @@ export default function StageNode({ data, selected }: NodeProps<StageFlowNode>) 
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
       className={[
-        'node-in group relative rounded-[14px] border px-3.5 py-3 text-start transition duration-200',
+        'node-in group relative cursor-pointer rounded-[14px] border px-3.5 py-3 text-start transition duration-200',
         'bg-[linear-gradient(160deg,rgba(24,24,34,0.97),rgba(11,11,17,0.97))]',
         'hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[0_10px_30px_-16px_rgba(124,92,255,0.9)]',
         success ? 'border-success/45 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]' : 'border-hairline',
