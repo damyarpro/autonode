@@ -42,9 +42,12 @@ server/
 shared/
   aiToolSpecs.ts   the AI tool contract, imported by both halves.
   business.ts      the business profile both halves read and write.
+  boardGraph.ts    a board's whole graph, stored as one snapshot per version.
 src/
-  data/       brand.ts · tools.ts · levels.ts · pipeline.ts · nodeGuide.ts —
-              every list, label and node explanation.
+  data/       brand.ts · tools.ts · levels.ts · pipeline.ts · nodeGuide.ts ·
+              nodeKinds.ts — every list, label and node explanation. The board
+              palette is derived from tools.ts, never restated.
+  components/board/  the editable canvas: palette, context menu, undo/redo.
   components/ AppShell · TabBar · PageBanner · Card · Icon — shared chrome.
   api/        fetch client and hooks. No component calls fetch directly.
   i18n/       t()/n() plus errors.ts, which turns the server's field:code
@@ -147,6 +150,9 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 | Meetings, reminders, referral ask | real, at `#/calls` — slots, bookings, one ask per customer |
 | Call brief | real — the dialling is what needs `VAPI_API_KEY` |
 | Publishing destinations | real, per channel on the business profile; a channel without one cannot publish |
+| Boards the owner builds | real, at `#/boards` — right-click palette, connect, group, undo, save |
+| Board history | real — every save is a version; a restore adds one rather than rewinding |
+| A public board | real — readable with no session; a private one answers exactly as a missing one |
 | Telegram | real delivery with `TELEGRAM_BOT_TOKEN` |
 | Website out | real with `WEBSITE_PUBLISH_URL` — a signed POST to your own endpoint |
 | LinkedIn out | real with `LINKEDIN_ACCESS_TOKEN`; needs approved API access (never run live from here) |

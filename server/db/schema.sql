@@ -270,3 +270,33 @@ CREATE TABLE IF NOT EXISTS call_outcomes (
   at            TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS call_outcomes_status ON call_outcomes (status, call_id DESC);
+
+-- ── boards ───────────────────────────────────────────────────────────────
+-- Boards the owner builds, as opposed to the one shipped in src/data/pipeline.ts.
+-- The name is bilingual because it is user-visible (rule 2); the slug is the
+-- URL and is assigned once, so a rename never moves a link that was shared.
+CREATE TABLE IF NOT EXISTS boards (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT    NOT NULL UNIQUE,
+  name_fa    TEXT    NOT NULL,
+  name_en    TEXT    NOT NULL,
+  visibility TEXT    NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public')),
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- One row per save: the whole graph as JSON rather than a row per node, so a
+-- save is atomic and a version is a snapshot that restores without replaying
+-- anything. History is append-only — a restore writes a new version pointing at
+-- the one it copied in `restored_from`, so an accidental restore is undoable.
+-- Node and edge counts are read back out of `graph_json`, never stored (rule 6).
+CREATE TABLE IF NOT EXISTS board_versions (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  board_id      INTEGER NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+  version       INTEGER NOT NULL,
+  graph_json    TEXT    NOT NULL,
+  note          TEXT,
+  restored_from INTEGER,
+  at            TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS board_versions_number ON board_versions (board_id, version);

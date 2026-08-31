@@ -49,6 +49,8 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 export const getJson = <T,>(path: string) => json<T>(path)
 export const postJson = <T,>(path: string, body?: unknown) =>
   json<T>(path, { method: 'POST', body: JSON.stringify(body ?? {}) })
+export const putJson = <T,>(path: string, body: unknown) =>
+  json<T>(path, { method: 'PUT', body: JSON.stringify(body) })
 export const patchJson = <T,>(path: string, body: unknown) =>
   json<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 export const deleteJson = <T,>(path: string) => json<T>(path, { method: 'DELETE' })

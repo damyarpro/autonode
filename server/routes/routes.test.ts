@@ -640,3 +640,349 @@ test('the vapi webhook records the call outcome, and only behind its secret', as
   const logged = (events.json() as { events: { type: string }[] }).events.filter((e) => e.type === 'call_completed')
   assert.equal(logged.length, 1)
 })
+
+// ── boards ───────────────────────────────────────────────────────────────
+
+/**
+ * `server/index.ts` registers the board plugin, but this agent does not own
+ * that file, so these cases mount it on their own instance — prepared exactly
+ * the way `buildServer()` prepares one: the same empty-body JSON parser, the
+ * same guard, and the same database this file already opened. Once
+ * `boardRoutes` is in `buildServer()` they can move onto the shared `app`
+ * unchanged.
+ */
+const Fastify = (await import('fastify')).default
+const { registerAuth, isPublicPath, createSession, destroySession, SESSION_COOKIE } = await import('../auth.ts')
+const boardRoutes = (await import('./boards.ts')).default
+
+const buildBoardApp = async () => {
+  const instance = Fastify({ logger: false })
+  instance.addContentTypeParser('application/json', { parseAs: 'string' }, (_request, body, done) => {
+    const raw = typeof body === 'string' ? body.trim() : ''
+    if (raw === '') return done(null, {})
+    try {
+      done(null, JSON.parse(raw))
+    } catch (error) {
+      const parseError = error as Error & { statusCode?: number }
+      parseError.statusCode = 400
+      done(parseError, undefined)
+    }
+  })
+  // Directly, not through register: a plugin body would encapsulate the hook.
+  registerAuth(instance)
+  await instance.register(boardRoutes)
+  await instance.ready()
+  return instance
+}
+
+type BoardApp = Awaited<ReturnType<typeof buildBoardApp>>
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+const hit = (instance: BoardApp, method: Method, url: string, payload?: unknown, token?: string) =>
+  instance.inject({
+    method,
+    url,
+    headers: token ? { ...JSON_HEADERS, cookie: `${SESSION_COOKIE}=${token}` } : JSON_HEADERS,
+    payload: payload === undefined ? undefined : JSON.stringify(payload),
+  })
+
+const boardNode = (id: string, x = 0) => ({
+  id,
+  kind: 'plain',
+  x,
+  y: 0,
+  icon: 'router',
+  title: { fa: `گره ${id}`, en: `Node ${id}` },
+})
+
+type PostedGraph = { nodes: unknown[]; edges: unknown[]; groups: unknown[] }
+const boardGraph = (ids: string[], edges: { id: string; source: string; target: string }[] = []): PostedGraph => ({
+  nodes: ids.map((id, index) => boardNode(id, index * 200)),
+  edges,
+  groups: [],
+})
+
+type BoardView = {
+  board: { slug: string; name: { fa: string; en: string }; visibility: string; version: number; nodes: number; edges: number }
+  graph: { nodes: { id: string }[]; edges: { id: string }[] }
+  version?: number
+  restoredFrom?: number | null
+}
+type VersionList = { versions: { version: number; note: string | null; restoredFrom: number | null; nodes: number; edges: number }[] }
+
+test('a board is created, saved twice, and restored without losing what came after', async () => {
+  const boards = await buildBoardApp()
+  try {
+    const created = await hit(boards, 'POST', '/api/boards', { name: { fa: 'قیف فروش', en: 'Sales funnel' } })
+    assert.equal(created.statusCode, 201)
+    const fresh = created.json() as BoardView
+    assert.equal(fresh.board.slug, 'sales-funnel')
+    assert.equal(fresh.board.visibility, 'private', 'a new board is private until it is published')
+    assert.deepEqual(fresh.board.name, { fa: 'قیف فروش', en: 'Sales funnel' })
+    assert.equal(fresh.board.version, 0, 'a board nobody has saved yet has no version')
+    assert.deepEqual(fresh.graph.nodes, [])
+
+    const first = await hit(boards, 'PUT', '/api/boards/sales-funnel', {
+      graph: boardGraph(['inbox', 'score'], [{ id: 'e1', source: 'inbox', target: 'score' }]),
+      note: 'the first pass',
+    })
+    assert.equal(first.statusCode, 200)
+    assert.equal((first.json() as BoardView).version, 1)
+
+    const second = await hit(boards, 'PUT', '/api/boards/sales-funnel', {
+      graph: boardGraph(['inbox', 'score', 'route'], [{ id: 'e1', source: 'inbox', target: 'score' }]),
+    })
+    assert.equal(second.statusCode, 200)
+    assert.equal((second.json() as BoardView).version, 2)
+
+    const history = await hit(boards, 'GET', '/api/boards/sales-funnel/versions')
+    assert.equal(history.statusCode, 200)
+    const two = (history.json() as VersionList).versions
+    assert.deepEqual(two.map((entry) => entry.version), [2, 1], 'newest first')
+    assert.deepEqual(two.map((entry) => entry.nodes), [3, 2])
+    assert.equal(two[1].note, 'the first pass')
+    assert.equal(JSON.stringify(two).includes('"graph"'), false, 'a history list carries counts, never graphs')
+
+    const preview = await hit(boards, 'GET', '/api/boards/sales-funnel/versions/1')
+    assert.equal(preview.statusCode, 200)
+    const old = preview.json() as { version: number; nodes: number; graph: { nodes: unknown[] } }
+    assert.equal(old.version, 1)
+    assert.equal(old.nodes, 2)
+    assert.equal(old.graph.nodes.length, 2, 'the graph sits where a board read keeps it')
+
+    const restored = await hit(boards, 'POST', '/api/boards/sales-funnel/restore/1', {})
+    assert.equal(restored.statusCode, 201)
+    const back = restored.json() as BoardView
+    assert.equal(back.version, 3, 'a restore is a new version, not a rewind')
+    assert.equal(back.restoredFrom, 1)
+    assert.deepEqual(back.graph.nodes.map((node) => node.id), ['inbox', 'score'])
+
+    const after = (await hit(boards, 'GET', '/api/boards/sales-funnel/versions')).json() as VersionList
+    assert.deepEqual(after.versions.map((entry) => entry.version), [3, 2, 1], 'history stays append-only')
+
+    // The accidental restore is itself undoable, because version 2 is still there.
+    const undone = await hit(boards, 'POST', '/api/boards/sales-funnel/restore/2')
+    assert.equal(undone.statusCode, 201)
+    assert.equal((undone.json() as BoardView).board.nodes, 3)
+
+    assert.equal((await hit(boards, 'GET', '/api/boards/sales-funnel/versions/99')).statusCode, 404)
+    const notANumber = await hit(boards, 'GET', '/api/boards/sales-funnel/versions/latest')
+    assert.equal(notANumber.statusCode, 400)
+    assert.deepEqual((notANumber.json() as { errors: string[] }).errors, ['version:not_a_number'])
+    assert.equal((await hit(boards, 'GET', '/api/boards/no-such-board')).statusCode, 404)
+  } finally {
+    await boards.close()
+  }
+})
+
+test('a saved graph drops the edges that lead nowhere and refuses one over the cap', async () => {
+  const boards = await buildBoardApp()
+  try {
+    await hit(boards, 'POST', '/api/boards', { name: { fa: 'لبه‌ها', en: 'Edges' } })
+
+    const saved = await hit(boards, 'PUT', '/api/boards/edges', {
+      graph: {
+        nodes: [boardNode('a'), boardNode('b')],
+        edges: [
+          { id: 'kept', source: 'a', target: 'b' },
+          { id: 'dangling', source: 'a', target: 'ghost' },
+          { id: 'itself', source: 'a', target: 'a' },
+        ],
+        groups: [],
+      },
+    })
+    assert.equal(saved.statusCode, 200, 'an editor that just deleted a node can still save')
+    const graph = (saved.json() as BoardView).graph
+    assert.deepEqual(graph.edges.map((edge) => edge.id), ['kept'])
+
+    const tooBig = await hit(boards, 'PUT', '/api/boards/edges', {
+      graph: boardGraph(Array.from({ length: 201 }, (_, index) => `n${index}`)),
+    })
+    assert.equal(tooBig.statusCode, 400)
+    assert.deepEqual((tooBig.json() as { errors: string[] }).errors, ['nodes:too_many:200'])
+
+    const notAList = await hit(boards, 'PUT', '/api/boards/edges', { graph: { nodes: 'lots' } })
+    assert.deepEqual((notAList.json() as { errors: string[] }).errors, ['nodes:not_a_list'])
+
+    // The failed saves wrote nothing: the board is still on the version it was.
+    assert.equal(((await hit(boards, 'GET', '/api/boards/edges')).json() as BoardView).board.version, 1)
+  } finally {
+    await boards.close()
+  }
+})
+
+test('two boards with the same name get different slugs, and a Persian-only name still gets one', async () => {
+  const boards = await buildBoardApp()
+  try {
+    const name = { fa: 'رشد', en: 'Growth loop' }
+    const first = await hit(boards, 'POST', '/api/boards', { name })
+    const second = await hit(boards, 'POST', '/api/boards', { name })
+    assert.equal(first.statusCode, 201)
+    assert.equal(second.statusCode, 201)
+    assert.equal((first.json() as BoardView).board.slug, 'growth-loop')
+    assert.equal((second.json() as BoardView).board.slug, 'growth-loop-2')
+
+    const persian = await hit(boards, 'POST', '/api/boards', { name: { fa: 'تخته‌ی من' } })
+    assert.equal(persian.statusCode, 201)
+    const only = (persian.json() as BoardView).board
+    assert.match(only.slug, /^board(-\d+)?$/, 'a name that transliterates to nothing still gets a typeable slug')
+    assert.equal(only.name.en, 'تخته‌ی من', 'one language given fills the other rather than storing a blank')
+
+    const nameless = await hit(boards, 'POST', '/api/boards', { name: { fa: '  ' } })
+    assert.equal(nameless.statusCode, 400)
+    assert.deepEqual((nameless.json() as { errors: string[] }).errors, ['name:required'])
+
+    const wrongVisibility = await hit(boards, 'POST', '/api/boards', { name, visibility: 'unlisted' })
+    assert.equal(wrongVisibility.statusCode, 400)
+    assert.deepEqual((wrongVisibility.json() as { errors: string[] }).errors, ['visibility:not_an_option'])
+  } finally {
+    await boards.close()
+  }
+})
+
+test('renaming keeps the slug, and deleting takes the history with it', async () => {
+  const boards = await buildBoardApp()
+  try {
+    await hit(boards, 'POST', '/api/boards', { name: { fa: 'موقت', en: 'Temporary' } })
+    await hit(boards, 'PUT', '/api/boards/temporary', { graph: boardGraph(['a']) })
+
+    const renamed = await hit(boards, 'PATCH', '/api/boards/temporary', {
+      name: { fa: 'ماندگار', en: 'Permanent' },
+      visibility: 'public',
+    })
+    assert.equal(renamed.statusCode, 200)
+    const board = (renamed.json() as BoardView).board
+    assert.equal(board.slug, 'temporary', 'a shared link does not move when the board is renamed')
+    assert.equal(board.name.en, 'Permanent')
+    assert.equal(board.visibility, 'public')
+
+    const nothing = await hit(boards, 'PATCH', '/api/boards/temporary', {})
+    assert.equal(nothing.statusCode, 400)
+    assert.deepEqual((nothing.json() as { errors: string[] }).errors, ['board:no_changes'])
+
+    const removed = await hit(boards, 'DELETE', '/api/boards/temporary')
+    assert.equal(removed.statusCode, 200)
+    assert.equal((await hit(boards, 'GET', '/api/boards/temporary')).statusCode, 404)
+    assert.equal((await hit(boards, 'DELETE', '/api/boards/temporary')).statusCode, 404)
+
+    const db = (await import('../db/index.ts')).db()
+    const left = db
+      .prepare('SELECT COUNT(*) AS n FROM board_versions WHERE board_id NOT IN (SELECT id FROM boards)')
+      .get() as { n: number }
+    assert.equal(Number(left.n), 0, 'the cascade takes the versions with the board')
+  } finally {
+    await boards.close()
+  }
+})
+
+test('only the single-board read is public, and no crafted path widens that', () => {
+  assert.equal(isPublicPath('GET', '/api/boards/sales-funnel'), true)
+  assert.equal(isPublicPath('GET', '/api/boards/sales-funnel?from=share'), true)
+
+  assert.equal(isPublicPath('GET', '/api/boards'), false, 'the list is not public')
+  assert.equal(isPublicPath('GET', '/api/boards/'), false)
+  assert.equal(isPublicPath('GET', '/api/boards/x/'), false, 'a trailing slash is a second segment')
+  assert.equal(isPublicPath('GET', '/api/boards/x/versions'), false)
+  assert.equal(isPublicPath('GET', '/api/boards/x/versions/1'), false)
+  assert.equal(isPublicPath('GET', '/api/boards/x/../leads'), false)
+  assert.equal(isPublicPath('GET', '/api/boards/../../api/leads'), false)
+  assert.equal(isPublicPath('GET', '/api/boardsx'), false)
+  assert.equal(isPublicPath('GET', '/api/boards/x/y'), false)
+  assert.equal(isPublicPath('PUT', '/api/boards/x'), false)
+  assert.equal(isPublicPath('PATCH', '/api/boards/x'), false)
+  assert.equal(isPublicPath('DELETE', '/api/boards/x'), false)
+  assert.equal(isPublicPath('POST', '/api/boards'), false)
+  assert.equal(isPublicPath('POST', '/api/boards/x/restore/1'), false)
+  assert.equal(isPublicPath('HEAD', '/api/boards/x'), false)
+})
+
+test('a private board is invisible without a session and a public one is readable', async () => {
+  // auth.ts reads its variables at call time, deliberately, so a test can
+  // switch authentication on around the cases that need it.
+  process.env.APP_PASSWORD = 'boards-test-password'
+  const boards = await buildBoardApp()
+  const { token } = createSession()
+
+  try {
+    const secret = await hit(boards, 'POST', '/api/boards', { name: { fa: 'خصوصی', en: 'Secret board' } }, token)
+    assert.equal(secret.statusCode, 201)
+    const shared = await hit(
+      boards,
+      'POST',
+      '/api/boards',
+      { name: { fa: 'عمومی', en: 'Shared board' }, visibility: 'public' },
+      token,
+    )
+    assert.equal(shared.statusCode, 201)
+    await hit(boards, 'PUT', '/api/boards/shared-board', { graph: boardGraph(['a', 'b']) }, token)
+
+    assert.equal((await hit(boards, 'POST', '/api/boards', { name: { fa: 'ب', en: 'No session' } })).statusCode, 401)
+
+    const stranger = await hit(boards, 'GET', '/api/boards/secret-board')
+    assert.equal(stranger.statusCode, 404, 'a private board answers exactly as a missing one does')
+    assert.deepEqual((stranger.json() as { errors: string[] }).errors, ['slug:unknown_board'])
+    assert.deepEqual(
+      (await hit(boards, 'GET', '/api/boards/never-existed')).json(),
+      stranger.json(),
+      'and the two answers are indistinguishable',
+    )
+
+    assert.equal((await hit(boards, 'GET', '/api/boards/secret-board', undefined, token)).statusCode, 200)
+
+    const anyone = await hit(boards, 'GET', '/api/boards/shared-board')
+    assert.equal(anyone.statusCode, 200, 'a public board is readable with no session')
+    assert.equal((anyone.json() as BoardView).graph.nodes.length, 2)
+
+    // Everything but that one read stays behind the guard, public board or not.
+    assert.equal((await hit(boards, 'GET', '/api/boards')).statusCode, 401)
+    assert.equal((await hit(boards, 'GET', '/api/boards/shared-board/versions')).statusCode, 401)
+    assert.equal((await hit(boards, 'GET', '/api/boards/shared-board/versions/1')).statusCode, 401)
+    assert.equal((await hit(boards, 'PUT', '/api/boards/shared-board', { graph: boardGraph(['x']) })).statusCode, 401)
+    assert.equal((await hit(boards, 'PATCH', '/api/boards/shared-board', { visibility: 'private' })).statusCode, 401)
+    assert.equal((await hit(boards, 'DELETE', '/api/boards/shared-board')).statusCode, 401)
+    assert.equal((await hit(boards, 'POST', '/api/boards/shared-board/restore/1')).statusCode, 401)
+
+    // An encoded slash is still one segment to the allowlist, and decodes to a
+    // slug no board can hold — it reaches the read handler and finds nothing.
+    assert.equal((await hit(boards, 'GET', '/api/boards/shared-board%2Fversions')).statusCode, 404)
+    assert.equal((await hit(boards, 'GET', '/api/boards/%2E%2E%2Fleads')).statusCode, 404)
+    assert.notEqual((await hit(boards, 'GET', '/api/boards/shared-board/')).statusCode, 200)
+
+    const listed = await hit(boards, 'GET', '/api/boards', undefined, token)
+    assert.equal(listed.statusCode, 200)
+    const slugs = (listed.json() as { boards: { slug: string }[] }).boards.map((entry) => entry.slug)
+    assert.ok(slugs.includes('secret-board'), 'the owner sees their own private boards')
+    assert.ok(slugs.includes('shared-board'))
+
+    const queries = await import('../db/queries.ts')
+    const signedOut = queries.listBoards(false).map((entry) => entry.slug)
+    assert.equal(signedOut.includes('secret-board'), false, 'the list never leaks a private board')
+    assert.ok(signedOut.includes('shared-board'))
+  } finally {
+    destroySession(token)
+    delete process.env.APP_PASSWORD
+    await boards.close()
+  }
+})
+
+test('history is bounded: the oldest versions fall off once the window is full', async () => {
+  const boards = await buildBoardApp()
+  try {
+    const { BOARD_VERSION_LIMIT } = await import('../domain/board.ts')
+    await hit(boards, 'POST', '/api/boards', { name: { fa: 'دراز', en: 'Long history' } })
+
+    const saves = BOARD_VERSION_LIMIT + 5
+    for (let n = 1; n <= saves; n += 1) {
+      const saved = await hit(boards, 'PUT', '/api/boards/long-history', { graph: boardGraph([`n${n}`]) })
+      assert.equal(saved.statusCode, 200)
+    }
+
+    const history = (await hit(boards, 'GET', '/api/boards/long-history/versions')).json() as VersionList
+    assert.equal(history.versions.length, BOARD_VERSION_LIMIT, 'the window holds and no further')
+    assert.equal(history.versions[0].version, saves, 'the newest save is the current version')
+    assert.equal(history.versions.at(-1)!.version, saves - BOARD_VERSION_LIMIT + 1)
+    assert.equal((await hit(boards, 'GET', '/api/boards/long-history/versions/1')).statusCode, 404)
+  } finally {
+    await boards.close()
+  }
+})

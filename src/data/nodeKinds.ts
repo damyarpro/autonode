@@ -333,7 +333,29 @@ const EXTERNAL_GLYPH: Record<ToolCategory, IconKey> = {
   automation: 'router',
 }
 
-const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+/**
+ * A stable id for a tool. Latin names slug the obvious way; a Persian-only name
+ * — زرین‌پال and زیبال are both in the catalogue — has no Latin letters at all
+ * and would slug to nothing, so it falls back to a hash of the name. Two of
+ * them collided on the empty string before this, which React noticed as a
+ * duplicate key and a board would have noticed as the wrong node kind.
+ *
+ * The hash is over the name, not the position, so adding or reordering tools
+ * does not change the id a saved board already refers to.
+ */
+const hash = (input: string): string => {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
+const slug = (name: string): string => {
+  const latin = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return latin || `x${hash(name)}`
+}
 
 const aiToolKinds: NodeKind[] = aiTools.map((tool) => ({
   id: `tool:${tool.id}`,
