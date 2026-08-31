@@ -21,6 +21,7 @@ import {
   type Tone,
 } from '../domain/business.ts'
 import type { ToolRun, ToolRunResult } from '../../shared/aiToolSpecs.ts'
+import { emptyGraph, type Bi, type BoardGraph, type BoardVisibility } from '../../shared/boardGraph.ts'
 import type { CallBrief } from '../domain/booking.ts'
 import { isStatus, type ContentKind, type ContentRecord, type ContentStatus } from '../domain/content.ts'
 
@@ -917,4 +918,232 @@ export function saveCallOutcome(input: SaveCallOutcomeInput): CallOutcomeRow {
     JSON.stringify(input.raw ?? null),
   )
   return callOutcomeFor(input.callId)!
+}
+
+// ── boards ───────────────────────────────────────────────────────────────
+
+export type BoardRow = {
+  id: number
+  slug: string
+  name_fa: string
+  name_en: string
+  visibility: string
+  created_at: string
+  updated_at: string
+}
+
+/** What a version says about itself in a history list — never its graph. */
+export type BoardVersionEntry = {
+  version: number
+  note: string | null
+  restoredFrom: number | null
+  at: string
+  nodes: number
+  edges: number
+  groups: number
+}
+
+export type BoardVersionRecord = BoardVersionEntry & { graph: BoardGraph }
+
+/** A board as a list row: the current version and what it holds. */
+export type BoardSummary = {
+  slug: string
+  name: Bi
+  visibility: string
+  version: number
+  nodes: number
+  edges: number
+  groups: number
+  createdAt: string
+  updatedAt: string
+}
+
+type VersionRow = {
+  version: number
+  note: string | null
+  restored_from: number | null
+  at: string
+  graph_json: string
+}
+
+/**
+ * Only normalized graphs are ever written, so a parse failure means the row was
+ * damaged outside this file. An empty board reads better than a thrown request.
+ */
+function readGraph(json: string | null | undefined): BoardGraph {
+  if (!json) return emptyGraph()
+  try {
+    const parsed = JSON.parse(json) as Partial<BoardGraph>
+    return {
+      nodes: Array.isArray(parsed?.nodes) ? parsed.nodes : [],
+      edges: Array.isArray(parsed?.edges) ? parsed.edges : [],
+      groups: Array.isArray(parsed?.groups) ? parsed.groups : [],
+    }
+  } catch {
+    return emptyGraph()
+  }
+}
+
+const toVersion = (row: VersionRow): BoardVersionRecord => {
+  const graph = readGraph(row.graph_json)
+  return {
+    version: row.version,
+    note: row.note,
+    restoredFrom: row.restored_from,
+    at: row.at,
+    nodes: graph.nodes.length,
+    edges: graph.edges.length,
+    groups: graph.groups.length,
+    graph,
+  }
+}
+
+export const boardBySlug = (slug: string): BoardRow | undefined =>
+  row<BoardRow>('SELECT * FROM boards WHERE slug = ?', slug)
+
+export const boardSlugTaken = (slug: string): boolean =>
+  count('SELECT COUNT(*) AS n FROM boards WHERE slug = ?', slug) > 0
+
+/**
+ * Newest first, each row carrying the current version and its counts. A private
+ * board is in the answer only when the caller asked for one, which is what
+ * keeps it out of a signed-out list.
+ */
+export function listBoards(includePrivate: boolean): BoardSummary[] {
+  const found = rows<BoardRow & { version: number | null; graph_json: string | null }>(
+    `SELECT b.*, v.version AS version, v.graph_json AS graph_json
+       FROM boards b
+       LEFT JOIN board_versions v
+         ON v.board_id = b.id
+        AND v.version = (SELECT MAX(version) FROM board_versions WHERE board_id = b.id)
+      WHERE ? = 1 OR b.visibility = 'public'
+      ORDER BY b.id DESC`,
+    includePrivate ? 1 : 0,
+  )
+
+  return found.map((entry) => {
+    const graph = readGraph(entry.graph_json)
+    return {
+      slug: entry.slug,
+      name: { fa: entry.name_fa, en: entry.name_en },
+      visibility: entry.visibility,
+      version: entry.version ?? 0,
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+      groups: graph.groups.length,
+      createdAt: entry.created_at,
+      updatedAt: entry.updated_at,
+    }
+  })
+}
+
+export const boardSummary = (board: BoardRow, version: number, graph: BoardGraph): BoardSummary => ({
+  slug: board.slug,
+  name: { fa: board.name_fa, en: board.name_en },
+  visibility: board.visibility,
+  version,
+  nodes: graph.nodes.length,
+  edges: graph.edges.length,
+  groups: graph.groups.length,
+  createdAt: board.created_at,
+  updatedAt: board.updated_at,
+})
+
+export type CreateBoardInput = { slug: string; name: Bi; visibility: BoardVisibility }
+
+/**
+ * Creates the board and nothing else. A board with no version yet reads back as
+ * an empty graph at version 0 — the honest answer for something that has never
+ * been saved, rather than a version 1 nobody wrote.
+ */
+export function createBoard(input: CreateBoardInput): BoardRow {
+  const result = run(
+    'INSERT INTO boards (slug, name_fa, name_en, visibility) VALUES (?, ?, ?, ?)',
+    input.slug,
+    input.name.fa,
+    input.name.en,
+    input.visibility,
+  )
+  return row<BoardRow>('SELECT * FROM boards WHERE id = ?', Number(result.lastInsertRowid))!
+}
+
+export const currentBoardVersion = (boardId: number): BoardVersionRecord | undefined => {
+  const found = row<VersionRow>(
+    'SELECT version, note, restored_from, at, graph_json FROM board_versions WHERE board_id = ? ORDER BY version DESC LIMIT 1',
+    boardId,
+  )
+  return found ? toVersion(found) : undefined
+}
+
+export const boardVersion = (boardId: number, version: number): BoardVersionRecord | undefined => {
+  const found = row<VersionRow>(
+    'SELECT version, note, restored_from, at, graph_json FROM board_versions WHERE board_id = ? AND version = ?',
+    boardId,
+    version,
+  )
+  return found ? toVersion(found) : undefined
+}
+
+/** The history, newest first, without the graphs — that list would be enormous. */
+export function listBoardVersions(boardId: number): BoardVersionEntry[] {
+  return rows<VersionRow>(
+    'SELECT version, note, restored_from, at, graph_json FROM board_versions WHERE board_id = ? ORDER BY version DESC',
+    boardId,
+  ).map((entry) => {
+    const { graph: _graph, ...summary } = toVersion(entry)
+    return summary
+  })
+}
+
+/**
+ * Appends one version. The number is the caller's — `nextVersion` in
+ * `server/domain/board.ts` owns that rule — and the unique index on
+ * (board_id, version) is what makes a wrong one fail loudly instead of
+ * overwriting history. `restoredFrom` is the version this graph was copied
+ * from, as a number rather than a sentence: the server writes no prose (rule 11).
+ */
+export function addBoardVersion(
+  boardId: number,
+  version: number,
+  graph: BoardGraph,
+  note: string | null,
+  restoredFrom: number | null,
+): BoardVersionRecord {
+  const result = run(
+    `INSERT INTO board_versions (board_id, version, graph_json, note, restored_from)
+     VALUES (?, ?, ?, ?, ?)`,
+    boardId,
+    version,
+    JSON.stringify(graph),
+    note,
+    restoredFrom,
+  )
+  run("UPDATE boards SET updated_at = datetime('now') WHERE id = ?", boardId)
+
+  const written = row<VersionRow>(
+    'SELECT version, note, restored_from, at, graph_json FROM board_versions WHERE id = ?',
+    Number(result.lastInsertRowid),
+  )!
+  return toVersion(written)
+}
+
+/** Retention: everything older than the cutoff goes. Returns how many rows went. */
+export function dropBoardVersionsBelow(boardId: number, cutoff: number): number {
+  const result = run('DELETE FROM board_versions WHERE board_id = ? AND version < ?', boardId, cutoff)
+  return Number(result.changes ?? 0)
+}
+
+/** Rename and re-visibility. The slug is not here: a shared URL does not move. */
+export function updateBoard(id: number, patch: { name?: Bi; visibility?: BoardVisibility }): BoardRow {
+  if (patch.name) {
+    run('UPDATE boards SET name_fa = ?, name_en = ? WHERE id = ?', patch.name.fa, patch.name.en, id)
+  }
+  if (patch.visibility) run('UPDATE boards SET visibility = ? WHERE id = ?', patch.visibility, id)
+  run("UPDATE boards SET updated_at = datetime('now') WHERE id = ?", id)
+  return row<BoardRow>('SELECT * FROM boards WHERE id = ?', id)!
+}
+
+/** The versions go with it, by the cascade the schema declares. */
+export function deleteBoard(id: number): boolean {
+  return Number(run('DELETE FROM boards WHERE id = ?', id).changes ?? 0) > 0
 }

@@ -20,6 +20,7 @@ import toolRoutes from './routes/tools.ts'
 import contentRoutes from './routes/content.ts'
 import callRoutes from './routes/calls.ts'
 import mediaRoutes from './routes/media.ts'
+import boardRoutes from './routes/boards.ts'
 
 export async function buildServer() {
   const app = Fastify({ logger: false })
@@ -67,6 +68,7 @@ export async function buildServer() {
   await app.register(contentRoutes)
   await app.register(callRoutes)
   await app.register(mediaRoutes)
+  await app.register(boardRoutes)
 
   await serveBuiltApp(app)
   return app

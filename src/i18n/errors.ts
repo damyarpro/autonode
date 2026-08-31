@@ -46,6 +46,26 @@ const FIELD_LABELS: Record<string, Bi> = {
   // calls
   leadId: { fa: 'شناسه‌ی لید', en: 'Lead id' },
   slotStart: { fa: 'زمان جلسه', en: 'Meeting time' },
+
+  // boards
+  board: { fa: 'بوم', en: 'Board' },
+  slug: { fa: 'نشانی بوم', en: 'Board address' },
+  visibility: { fa: 'دسترسی', en: 'Visibility' },
+  graph: { fa: 'نقشه‌ی بوم', en: 'Board graph' },
+  nodes: { fa: 'گره‌ها', en: 'Nodes' },
+  edges: { fa: 'یال‌ها', en: 'Edges' },
+  groups: { fa: 'گروه‌ها', en: 'Groups' },
+  note: { fa: 'یادداشت نسخه', en: 'Version note' },
+  version: { fa: 'نسخه', en: 'Version' },
+}
+
+/**
+ * `name` means the business on one page and the board on another. Rather than
+ * split the dictionary, the boards pass this override — the same mechanism the
+ * AI tool page uses to prefer its own spec's labels.
+ */
+export const BOARD_FIELD_LABELS: Record<string, Bi> = {
+  name: { fa: 'نام بوم', en: 'Board name' },
 }
 
 const labelFor = (fieldId: string, override?: Bi): Bi =>
@@ -135,6 +155,37 @@ export function explainCode(code: string, label?: Bi, digits: (value: string) =>
       }
     case 'unknown_lead':
       return { fa: 'این لید پیدا نشد.', en: 'No such lead.' }
+
+    // Board answers.
+    case 'too_many':
+      return {
+        fa: `«${name.fa}» از ${digits(arg ?? '')} تا بیشتر شده است.`,
+        en: `There are more than ${arg ?? ''} ${name.en.toLowerCase()}.`,
+      }
+    case 'bad_id':
+      return {
+        fa: `شناسه‌ی یکی از «${name.fa}» معتبر نیست.`,
+        en: `One of the ${name.en.toLowerCase()} has an invalid id.`,
+      }
+    case 'duplicate_id':
+      return {
+        fa: `دو تا از «${name.fa}» شناسه‌ی یکسان دارند.`,
+        en: `Two of the ${name.en.toLowerCase()} share an id.`,
+      }
+    case 'bad_ends':
+      return { fa: 'یک یال ابتدا یا انتهای معتبر ندارد.', en: 'An edge has no valid start or end.' }
+    case 'title_required':
+      return { fa: 'هر گره باید عنوان داشته باشد، در هر دو زبان.', en: 'Every node needs a title, in both languages.' }
+    case 'label_required':
+      return { fa: 'هر گروه باید برچسب داشته باشد، در هر دو زبان.', en: 'Every group needs a label, in both languages.' }
+    case 'no_changes':
+      return { fa: 'چیزی تغییر نکرده، پس نسخه‌ی تازه‌ای ساخته نشد.', en: 'Nothing changed, so no new version was made.' }
+    case 'unavailable':
+      return { fa: `این «${name.fa}» قبلاً گرفته شده است.`, en: `That ${name.en.toLowerCase()} is already taken.` }
+    case 'unknown_board':
+      return { fa: 'چنین بومی وجود ندارد.', en: 'No such board.' }
+    case 'unknown_version':
+      return { fa: 'چنین نسخه‌ای برای این بوم ثبت نشده.', en: 'This board has no such version.' }
 
     default:
       // An unknown code is still better shown than swallowed.
