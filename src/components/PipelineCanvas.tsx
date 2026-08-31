@@ -25,6 +25,13 @@ const edgeTypes = { loopback: LoopbackEdge, flow: FlowEdge }
 const layoutWidth = Math.max(...nodeData.map((node) => node.x + (node.width ?? DEFAULT_WIDTH)))
 
 const INITIAL_ZOOM = 0.8
+/** A narrow screen trades a little card size for a second column of context. */
+const COMPACT_ZOOM = 0.66
+/** World y of the group rail, and of the first row of cards under it. */
+const RAIL_Y = -235
+const FIRST_ROW_Y = 20
+/** Below this many pixels of canvas the rail is not worth the height it costs. */
+const RAIL_ROOM = 560
 
 /** Stacks the reinvestment edges on separate rails so they never overlap. */
 const loopbackOrder = edgeData.filter((edge) => edge.loopback).map((edge) => edge.id)
@@ -57,14 +64,20 @@ function Canvas({ metrics, pulses, hotNodes, onOpenNode }: CanvasProps) {
 
   // Open on the head of the funnel rather than fitting the whole 4,500px
   // layout, which would shrink every card past legibility. The top rail sits
-  // at world y ≈ -235, so anchor that just under the KPI bar.
+  // at world y ≈ -235, so anchor that just under the KPI bar — but only when
+  // there is height to spend on it. A phone canvas is a few hundred pixels
+  // tall, and anchoring the rail there opened the board on empty air with the
+  // first row of cards below the fold, so a short canvas anchors that row.
   const onInit = useCallback<OnInit<StageFlowNode, Edge>>(
     (instance) => {
       const width = wrapRef.current?.clientWidth ?? 1440
+      const height = wrapRef.current?.clientHeight ?? 900
+      const zoom = width < 1024 ? COMPACT_ZOOM : INITIAL_ZOOM
+      const topWorldY = height < RAIL_ROOM ? FIRST_ROW_Y : RAIL_Y
       instance.setViewport({
-        x: isRtl ? width - 40 - layoutWidth * INITIAL_ZOOM : 40 + 40 * INITIAL_ZOOM,
-        y: 26 + 235 * INITIAL_ZOOM,
-        zoom: INITIAL_ZOOM,
+        x: isRtl ? width - 40 - layoutWidth * zoom : 40 + 40 * zoom,
+        y: 26 - topWorldY * zoom,
+        zoom,
       })
     },
     [isRtl],

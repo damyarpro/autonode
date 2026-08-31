@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import BoardNodeCard, { BoardGroupBox, type BoardFlowNode } from './BoardNodeCard'
-import BoardContextMenu, { type BoardMenu, type MenuActions } from './ContextMenu'
+import BoardContextMenu, { useCompact, type BoardMenu, type MenuActions } from './ContextMenu'
 import { useI18n } from '../../i18n/I18nProvider'
 import type { Bi, BoardGraph } from '../../../shared/boardGraph'
 import {
@@ -114,6 +114,7 @@ function Editor({
   innerRef,
 }: Props) {
   const { t, isRtl } = useI18n()
+  const compact = useCompact()
   const wrap = useRef<HTMLDivElement>(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
 
@@ -538,12 +539,24 @@ function Editor({
         onNodeContextMenu={onNodeContextMenu}
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
+        // React Flow pans the board while a wire is dragged within 40px of the
+        // canvas edge. On a phone a 285px card in a ~356px canvas leaves 35px
+        // on either side, so every handle sits inside that margin and the board
+        // slid away from under the finger before the wire could land. Below
+        // `sm` the board holds still and connecting works; a node off screen is
+        // reached by zooming out first, which is the phone gesture anyway.
+        autoPanOnConnect={!compact}
         elementsSelectable
         // Deleting is handled with the rest of the shortcuts, in one place that
         // knows not to fire while someone is typing a name.
         deleteKeyCode={null}
         fitView
-        fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+        // Open on the whole board, at any width — a graph that opens with its
+        // ends off screen is worse on a phone than one that opens small, since
+        // the zoom control is right there and the missing half is not. The
+        // padding is a sixth rather than a third for the same reason: on a
+        // 358px canvas, a third of it spent on margin is a third of the board.
+        fitViewOptions={{ padding: 0.16, maxZoom: 1 }}
         minZoom={0.15}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

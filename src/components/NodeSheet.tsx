@@ -35,6 +35,11 @@ const COPY = {
 /**
  * What one box on the board does, and the way in to its work. Opened by tapping
  * a node; the explanation itself lives in `src/data/nodeGuide.ts`, never here.
+ *
+ * A sheet that rises from the bottom edge is a phone pattern — it is where the
+ * thumb is. On a wide screen there is no thumb and no bottom edge worth
+ * reaching for, so above `lg` the same panel becomes a centred dialog and drops
+ * its drag handle, which promises a gesture a mouse does not have.
  */
 export default function NodeSheet({ node, onClose }: { node: StageNode | null; onClose: () => void }) {
   const { t } = useI18n()
@@ -53,7 +58,7 @@ export default function NodeSheet({ node, onClose }: { node: StageNode | null; o
   const driverNote = guide?.driver === 'auto' ? COPY.autoNote : COPY.manualNote
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center lg:p-8" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label={t(COPY.dismiss)}
@@ -61,8 +66,8 @@ export default function NodeSheet({ node, onClose }: { node: StageNode | null; o
         className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
       />
 
-      <div className="sheet-in relative max-h-[85vh] w-full max-w-[520px] overflow-y-auto rounded-t-3xl border-t border-hairline bg-panel px-5 pb-6 pt-4 text-start">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15" />
+      <div className="sheet-in relative max-h-[85vh] w-full max-w-[520px] overflow-y-auto rounded-t-3xl border-t border-hairline bg-panel px-5 pb-6 pt-4 text-start lg:max-h-[78vh] lg:rounded-2xl lg:border lg:border-hairline lg:px-6 lg:pt-5 lg:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.95)]">
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 lg:hidden" />
 
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">

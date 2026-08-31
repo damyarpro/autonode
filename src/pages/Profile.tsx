@@ -129,151 +129,163 @@ export default function Profile() {
 
   return (
     <AppShell>
-      <Card className="mb-3">
-        <CardHead
-          icon="User"
-          kicker={COPY.profile}
-          title={profile?.displayName ?? t(brand.name)}
-          subtitle={t(COPY.level).replace('{n}', num(profile?.level ?? 0))}
-        />
-        <div className="mt-3 border-t border-hairline pt-2">
-          <Row label={t(COPY.fullName)} value={profile?.fullName || dash} />
-          <Row label={t(COPY.phone)} value={profile?.phone || dash} />
-          <Row label={t(COPY.plan)} value={t(COPY.noPlan)} />
-          <Row label={t(COPY.status)} value={<span className="text-success">{t(COPY.inactive)}</span>} />
-          <Row
-            label={t(COPY.points)}
-            value={
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-accent/20 text-[10px] text-white">
-                {num(profile?.points ?? 0)}
-              </span>
-            }
-          />
-          <Row
-            label={t(COPY.connection)}
-            value={
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${
-                  profile?.bot ? 'border-success/40 bg-success/10 text-success' : 'border-hairline text-white/35'
-                }`}
+      {/*
+        Two hand-split stacks rather than one grid of cards: the cards are wildly
+        different heights, and dividing them here keeps the phone order — identity,
+        business, subscription, support, privacy — while letting the short ones sit
+        beside the tall one above `lg`.
+      */}
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+        <div>
+          <Card className="mb-3">
+            <CardHead
+              icon="User"
+              kicker={COPY.profile}
+              title={profile?.displayName ?? t(brand.name)}
+              subtitle={t(COPY.level).replace('{n}', num(profile?.level ?? 0))}
+            />
+            <div className="mt-3 border-t border-hairline pt-2">
+              <Row label={t(COPY.fullName)} value={profile?.fullName || dash} />
+              <Row label={t(COPY.phone)} value={profile?.phone || dash} />
+              <Row label={t(COPY.plan)} value={t(COPY.noPlan)} />
+              <Row label={t(COPY.status)} value={<span className="text-success">{t(COPY.inactive)}</span>} />
+              <Row
+                label={t(COPY.points)}
+                value={
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-accent/20 text-[10px] text-white">
+                    {num(profile?.points ?? 0)}
+                  </span>
+                }
+              />
+              <Row
+                label={t(COPY.connection)}
+                value={
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${
+                      profile?.bot ? 'border-success/40 bg-success/10 text-success' : 'border-hairline text-white/35'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${profile?.bot ? 'bg-success' : 'bg-white/30'}`} />
+                    {profile?.bot
+                      ? `${t(COPY.connected)} · ${profile.bot.username ?? ''} (ID: ${n(profile.bot.id)})`
+                      : t(COPY.notConnected)}
+                  </span>
+                }
+              />
+            </div>
+
+            {editing ? (
+              <EditForm
+                initial={{ fullName: profile?.fullName ?? '', phone: profile?.phone ?? '' }}
+                onDone={() => {
+                  setEditing(false)
+                  void refresh()
+                }}
+              />
+            ) : (
+              <div className="mt-3">
+                <PrimaryButton onClick={() => setEditing(true)} disabled={!online}>
+                  {t(COPY.editProfile)}
+                </PrimaryButton>
+              </div>
+            )}
+          </Card>
+
+          <Card className="mb-3">
+            <CardHead
+              icon="Briefcase"
+              kicker={COPY.business}
+              title={t(COPY.businessTitle)}
+              subtitle={t(COPY.businessSub)}
+            />
+            <div className="mt-3 border-t border-hairline pt-2">
+              <Row label={t(COPY.status)} value={t(COPY.active)} />
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Link to="/business" className="flex-1">
+                <PrimaryButton>{t(COPY.enterProfile)}</PrimaryButton>
+              </Link>
+              <Link
+                to="/sales-automation"
+                className="flex flex-1 items-center justify-center rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${profile?.bot ? 'bg-success' : 'bg-white/30'}`} />
-                {profile?.bot
-                  ? `${t(COPY.connected)} · ${profile.bot.username ?? ''} (ID: ${n(profile.bot.id)})`
-                  : t(COPY.notConnected)}
-              </span>
-            }
-          />
+                {t(COPY.openBoard)}
+              </Link>
+            </div>
+          </Card>
         </div>
 
-        {editing ? (
-          <EditForm
-            initial={{ fullName: profile?.fullName ?? '', phone: profile?.phone ?? '' }}
-            onDone={() => {
-              setEditing(false)
-              void refresh()
-            }}
-          />
-        ) : (
-          <div className="mt-3">
-            <PrimaryButton onClick={() => setEditing(true)} disabled={!online}>
-              {t(COPY.editProfile)}
-            </PrimaryButton>
-          </div>
-        )}
-      </Card>
+        <div>
+          <Card className="mb-3">
+            <CardHead
+              icon="CreditCard"
+              kicker={COPY.subscription}
+              title={t(COPY.subscriptionTitle)}
+              subtitle={t(COPY.status) + ' ' + t(COPY.inactive)}
+            />
+            <div className="mt-3 border-t border-hairline pt-2">
+              <Row label={t(COPY.expires)} value={profile?.planExpires ?? '-'} />
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                className="flex-1 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/30"
+              >
+                {t(COPY.manageSub)}
+              </button>
+              <SoonBadge />
+            </div>
+          </Card>
 
-      <Card className="mb-3">
-        <CardHead
-          icon="Briefcase"
-          kicker={COPY.business}
-          title={t(COPY.businessTitle)}
-          subtitle={t(COPY.businessSub)}
-        />
-        <div className="mt-3 border-t border-hairline pt-2">
-          <Row label={t(COPY.status)} value={t(COPY.active)} />
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <Link to="/business" className="flex-1">
-            <PrimaryButton>{t(COPY.enterProfile)}</PrimaryButton>
-          </Link>
-          <Link
-            to="/sales-automation"
-            className="flex flex-1 items-center justify-center rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
-          >
-            {t(COPY.openBoard)}
-          </Link>
-        </div>
-      </Card>
+          <Card className="mb-3">
+            <CardHead icon="MessageSquare" kicker={COPY.support} title={t(COPY.support)} subtitle={withBrand(t(COPY.supportSub), locale)} />
+            <p className="mt-3 border-t border-hairline pt-3 text-[11.5px] leading-relaxed text-white/45">
+              {withBrand(t(COPY.supportBody), locale)}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Link to="/ai-coach" className="flex-1">
+                <PrimaryButton>
+                  <span className="inline-flex items-center gap-2">
+                    <Icon name="Headphones" size={14} />
+                    {t(COPY.support)}
+                  </span>
+                </PrimaryButton>
+              </Link>
+              <Link
+                to="/levels"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
+              >
+                <Icon name="BookOpen" size={14} />
+                {t(COPY.guide)}
+              </Link>
+            </div>
+          </Card>
 
-      <Card className="mb-3">
-        <CardHead
-          icon="CreditCard"
-          kicker={COPY.subscription}
-          title={t(COPY.subscriptionTitle)}
-          subtitle={t(COPY.status) + ' ' + t(COPY.inactive)}
-        />
-        <div className="mt-3 border-t border-hairline pt-2">
-          <Row label={t(COPY.expires)} value={profile?.planExpires ?? '-'} />
+          <Card className="mb-4">
+            <CardHead icon="Shield" kicker={COPY.privacy} title={t(COPY.privacyTitle)} subtitle={t(COPY.privacySub)} />
+            <p className="mt-3 border-t border-hairline pt-3 text-[11.5px] leading-relaxed text-white/45">
+              {t(COPY.privacyBody)}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                disabled
+                className="flex-1 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/30"
+              >
+                {t(COPY.privacySettings)}
+              </button>
+              <SoonBadge />
+            </div>
+          </Card>
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            disabled
-            className="flex-1 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/30"
-          >
-            {t(COPY.manageSub)}
-          </button>
-          <SoonBadge />
-        </div>
-      </Card>
-
-      <Card className="mb-3">
-        <CardHead icon="MessageSquare" kicker={COPY.support} title={t(COPY.support)} subtitle={withBrand(t(COPY.supportSub), locale)} />
-        <p className="mt-3 border-t border-hairline pt-3 text-[11.5px] leading-relaxed text-white/45">
-          {withBrand(t(COPY.supportBody), locale)}
-        </p>
-        <div className="mt-3 flex gap-2">
-          <Link to="/ai-coach" className="flex-1">
-            <PrimaryButton>
-              <span className="inline-flex items-center gap-2">
-                <Icon name="Headphones" size={14} />
-                {t(COPY.support)}
-              </span>
-            </PrimaryButton>
-          </Link>
-          <Link
-            to="/levels"
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/70 transition hover:text-white"
-          >
-            <Icon name="BookOpen" size={14} />
-            {t(COPY.guide)}
-          </Link>
-        </div>
-      </Card>
-
-      <Card className="mb-4">
-        <CardHead icon="Shield" kicker={COPY.privacy} title={t(COPY.privacyTitle)} subtitle={t(COPY.privacySub)} />
-        <p className="mt-3 border-t border-hairline pt-3 text-[11.5px] leading-relaxed text-white/45">
-          {t(COPY.privacyBody)}
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            disabled
-            className="flex-1 rounded-xl border border-hairline py-2.5 text-[12.5px] text-white/30"
-          >
-            {t(COPY.privacySettings)}
-          </button>
-          <SoonBadge />
-        </div>
-      </Card>
+      </div>
 
       <button
         type="button"
         onClick={signOut}
         disabled={!session.enabled || leaving}
-        className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-hairline py-3 text-[12.5px] transition ${
+        className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-hairline py-3 text-[12.5px] transition lg:mx-auto lg:max-w-xs ${
           session.enabled && !leaving ? 'text-white/70 hover:text-white' : 'text-white/30'
         }`}
       >

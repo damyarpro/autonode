@@ -68,10 +68,18 @@ const kpiGlyphs = {
   cycle: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5.2l3.4 2',
 } as const
 
-export function KpiIcon({ icon }: { icon: keyof typeof kpiGlyphs }) {
+/**
+ * `size` exists so a narrow KPI tile can shrink instead of being hidden: on a
+ * 195px phone column a 36px tile is most of the row, but losing the glyph
+ * altogether costs the only thing that tells the four cards apart at a glance.
+ */
+export function KpiIcon({ icon, size = 36 }: { icon: keyof typeof kpiGlyphs; size?: number }) {
   return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-accent-soft text-[#b6a4ff]">
-      <svg viewBox="0 0 24 24" width={19} height={19} aria-hidden>
+    <span
+      className="grid shrink-0 place-items-center rounded-[10px] bg-accent-soft text-[#b6a4ff]"
+      style={{ width: size, height: size }}
+    >
+      <svg viewBox="0 0 24 24" width={Math.round(size * 0.53)} height={Math.round(size * 0.53)} aria-hidden>
         {s(kpiGlyphs[icon])}
       </svg>
     </span>

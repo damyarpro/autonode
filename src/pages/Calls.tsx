@@ -351,251 +351,260 @@ export default function Calls() {
         </div>
       )}
 
-      {/* 1 — the lead every action on this page needs. */}
-      <Card className="mt-4">
-        <CardHead
-          icon="Users"
-          kicker={COPY.leadKicker}
-          title={t(COPY.leadTitle)}
-          subtitle={t(COPY.leadSub)}
-        />
+      {/* Two columns of work above `lg`: the lead and the brief you dial from
+          on one side, the calendar and what came of it on the other. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
+        <div className="space-y-3">
+          {/* 1 — the lead every action on this page needs. */}
+          <Card>
+            <CardHead
+              icon="Users"
+              kicker={COPY.leadKicker}
+              title={t(COPY.leadTitle)}
+              subtitle={t(COPY.leadSub)}
+            />
 
-        {ordered.length === 0 ? (
-          <p className="mt-3 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.leadNone)}</p>
-        ) : (
-          <ul className="mt-3 max-h-72 space-y-1 overflow-auto pe-1">
-            {ordered.map((lead) => (
-              <li key={lead.id}>
-                <LeadButton lead={lead} selected={lead.id === leadId} onPick={() => pickLead(lead.id)} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      {/* 2 — the brief, and an honest word about what dialling means here. */}
-      <Card className="mt-3">
-        <CardHead
-          icon="MessageSquare"
-          kicker={COPY.briefKicker}
-          title={t(COPY.briefTitle)}
-          subtitle={t(COPY.briefSub)}
-        />
-
-        <p className="mt-3 text-[11.5px] leading-relaxed text-white/55">{t(dialLine)}</p>
-        {adapter && (
-          <div className="mt-1.5">
-            <Row label={t(COPY.voiceAdapter)} value={<span className="text-[11.5px] text-white/70">{adapter}</span>} />
-          </div>
-        )}
-
-        <div className="mt-3">
-          <PrimaryButton
-            onClick={() => {
-              if (leadId !== null) void desk.prepare(leadId)
-            }}
-            disabled={leadId === null || preparing || !online}
-          >
-            {t(preparing ? COPY.preparingNow : COPY.prepare)}
-          </PrimaryButton>
-          {leadId === null && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.leadPickFirst)}</p>}
-        </div>
-
-        {error?.source === 'prepare' && <Failure failure={error} />}
-
-        {prepared && (
-          <div className="mt-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Chip tone={prepared.brief.producedBy === 'claude' ? 'accent' : 'neutral'}>
-                {t(prepared.brief.producedBy === 'claude' ? COPY.byClaude : COPY.byTemplate)}
-              </Chip>
-              <Chip tone={prepared.call.status === 'failed' ? 'hot' : 'neutral'}>
-                {t(labelOf(CALL_STATUS, prepared.call.status))}
-              </Chip>
-              {selected && <Chip>{leadName(selected.id)}</Chip>}
-            </div>
-
-            {/* The brief is content, so it is rendered in the language it was
-                written in rather than translated at render time. */}
-            <BriefBlock label={COPY.opening} text={prepared.brief.opening} />
-
-            <div>
-              <h3 className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.objections)}</h3>
-              <ul className="space-y-2">
-                {prepared.brief.objections.map((entry, index) => (
-                  <li key={index} className="rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
-                    <p dir="auto" className="text-[12px] leading-relaxed text-white/85">
-                      {entry.objection}
-                    </p>
-                    <p className="mt-1.5 text-[9.5px] uppercase tracking-[0.16em] text-white/25">{t(COPY.answer)}</p>
-                    <p dir="auto" className="text-[11.5px] leading-relaxed text-white/60">
-                      {entry.answer}
-                    </p>
+            {ordered.length === 0 ? (
+              <p className="mt-3 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.leadNone)}</p>
+            ) : (
+              <ul className="mt-3 max-h-72 space-y-1 overflow-auto pe-1 lg:max-h-[26rem]">
+                {ordered.map((lead) => (
+                  <li key={lead.id}>
+                    <LeadButton lead={lead} selected={lead.id === leadId} onPick={() => pickLead(lead.id)} />
                   </li>
                 ))}
               </ul>
+            )}
+          </Card>
+
+          {/* 2 — the brief, and an honest word about what dialling means here. */}
+          <Card>
+            <CardHead
+              icon="MessageSquare"
+              kicker={COPY.briefKicker}
+              title={t(COPY.briefTitle)}
+              subtitle={t(COPY.briefSub)}
+            />
+
+            <p className="mt-3 text-[11.5px] leading-relaxed text-white/55">{t(dialLine)}</p>
+            {adapter && (
+              <div className="mt-1.5">
+                <Row label={t(COPY.voiceAdapter)} value={<span className="text-[11.5px] text-white/70">{adapter}</span>} />
+              </div>
+            )}
+
+            <div className="mt-3">
+              <PrimaryButton
+                onClick={() => {
+                  if (leadId !== null) void desk.prepare(leadId)
+                }}
+                disabled={leadId === null || preparing || !online}
+              >
+                {t(preparing ? COPY.preparingNow : COPY.prepare)}
+              </PrimaryButton>
+              {leadId === null && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.leadPickFirst)}</p>}
             </div>
 
-            <BriefBlock label={COPY.ask} text={prepared.brief.ask} />
-          </div>
-        )}
-      </Card>
+            {error?.source === 'prepare' && <Failure failure={error} />}
 
-      {/* 3 — the calendar side. */}
-      <Card className="mt-3">
-        <CardHead
-          icon="Calendar"
-          kicker={COPY.bookKicker}
-          title={t(COPY.bookTitle)}
-          subtitle={t(COPY.bookSub)}
-        />
-
-        <div className="mt-3 space-y-1 text-[10.5px] leading-relaxed text-white/35">
-          {slotMinutes !== null && <p>{t(slotLengthLine(num(slotMinutes)))}</p>}
-          {hours && <p>{t(hoursLine(n(clockOf(hours.start)), n(clockOf(hours.end)), n(zone)))}</p>}
-          <p>{t(zoneNote(n(zone)))}</p>
-        </div>
-
-        {days.length === 0 ? (
-          <p className="mt-3 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.bookNoSlots)}</p>
-        ) : (
-          <div className="mt-3 space-y-3">
-            {days.map((day) => (
-              <div key={day.date}>
-                <h3 className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">
-                  {t(WEEKDAYS[day.weekday])} · {n(day.date)}
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {day.slots.map((slot) => {
-                    const wall = wallClock(slot.start, offsetMinutes)
-                    const on = slot.start === slotStart
-                    return (
-                      <button
-                        key={slot.start}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => {
-                          // The last refusal was about the old slot, not this one.
-                          desk.clearError()
-                          setSlotStart(on ? null : slot.start)
-                        }}
-                        className={`rounded-full px-3 py-1.5 text-[11px] tabular-nums transition ${
-                          on
-                            ? 'bg-accent text-white'
-                            : 'border border-hairline bg-white/[0.03] text-white/55 hover:text-white/85'
-                        }`}
-                      >
-                        {n(wall?.time ?? slot.start)}
-                      </button>
-                    )
-                  })}
+            {prepared && (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Chip tone={prepared.brief.producedBy === 'claude' ? 'accent' : 'neutral'}>
+                    {t(prepared.brief.producedBy === 'claude' ? COPY.byClaude : COPY.byTemplate)}
+                  </Chip>
+                  <Chip tone={prepared.call.status === 'failed' ? 'hot' : 'neutral'}>
+                    {t(labelOf(CALL_STATUS, prepared.call.status))}
+                  </Chip>
+                  {selected && <Chip>{leadName(selected.id)}</Chip>}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
 
-        <div className="mt-3">
-          <PrimaryButton
-            onClick={() => void confirmBooking()}
-            disabled={leadId === null || !chosen || booking || !online}
-          >
-            {t(booking ? COPY.bookingNow : COPY.bookConfirm)}
-          </PrimaryButton>
-          {leadId === null && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.leadPickFirst)}</p>}
-          {chosen && (
-            <p className="mt-2 text-center text-[10.5px] text-white/45">
-              {stamp(chosen.start)}
-              {selected ? ` · ${leadName(selected.id)}` : ''}
-            </p>
-          )}
+                {/* The brief is content, so it is rendered in the language it was
+                    written in rather than translated at render time. */}
+                <BriefBlock label={COPY.opening} text={prepared.brief.opening} />
+
+                <div>
+                  <h3 className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.objections)}</h3>
+                  <ul className="space-y-2">
+                    {prepared.brief.objections.map((entry, index) => (
+                      <li key={index} className="rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
+                        <p dir="auto" className="text-[12px] leading-relaxed text-white/85">
+                          {entry.objection}
+                        </p>
+                        <p className="mt-1.5 text-[9.5px] uppercase tracking-[0.16em] text-white/25">{t(COPY.answer)}</p>
+                        <p dir="auto" className="text-[11.5px] leading-relaxed text-white/60">
+                          {entry.answer}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <BriefBlock label={COPY.ask} text={prepared.brief.ask} />
+              </div>
+            )}
+          </Card>
         </div>
 
-        {error?.source === 'book' && <Failure failure={error} />}
+        <div className="space-y-3">
+          {/* 3 — the calendar side. */}
+          <Card>
+            <CardHead
+              icon="Calendar"
+              kicker={COPY.bookKicker}
+              title={t(COPY.bookTitle)}
+              subtitle={t(COPY.bookSub)}
+            />
 
-        {lastBooking && (
-          <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2.5">
-            <p className="text-[11.5px] text-success">
-              {t(COPY.booked)} · {stamp(lastBooking.booking.start_at)}
-            </p>
-            <p className="mt-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.remindersLabel)}</p>
-            {lastBooking.reminders.length === 0 ? (
-              <p className="text-[11px] text-white/45">{t(COPY.remindersNone)}</p>
+            <div className="mt-3 space-y-1 text-[10.5px] leading-relaxed text-white/35">
+              {slotMinutes !== null && <p>{t(slotLengthLine(num(slotMinutes)))}</p>}
+              {hours && <p>{t(hoursLine(n(clockOf(hours.start)), n(clockOf(hours.end)), n(zone)))}</p>}
+              <p>{t(zoneNote(n(zone)))}</p>
+            </div>
+
+            {days.length === 0 ? (
+              <p className="mt-3 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.bookNoSlots)}</p>
             ) : (
-              <ul className="space-y-0.5 text-[11px] text-white/70">
-                {lastBooking.reminders.map((due) => (
-                  <li key={due}>{stamp(due)}</li>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {days.map((day) => (
+                  <div key={day.date}>
+                    <h3 className="mb-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">
+                      {t(WEEKDAYS[day.weekday])} · {n(day.date)}
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {day.slots.map((slot) => {
+                        const wall = wallClock(slot.start, offsetMinutes)
+                        const on = slot.start === slotStart
+                        return (
+                          <button
+                            key={slot.start}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              // The last refusal was about the old slot, not this one.
+                              desk.clearError()
+                              setSlotStart(on ? null : slot.start)
+                            }}
+                            className={`rounded-full px-3 py-1.5 text-[11px] tabular-nums transition ${
+                              on
+                                ? 'bg-accent text-white'
+                                : 'border border-hairline bg-white/[0.03] text-white/55 hover:text-white/85'
+                            }`}
+                          >
+                            {n(wall?.time ?? slot.start)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3">
+              <PrimaryButton
+                onClick={() => void confirmBooking()}
+                disabled={leadId === null || !chosen || booking || !online}
+              >
+                {t(booking ? COPY.bookingNow : COPY.bookConfirm)}
+              </PrimaryButton>
+              {leadId === null && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.leadPickFirst)}</p>}
+              {chosen && (
+                <p className="mt-2 text-center text-[10.5px] text-white/45">
+                  {stamp(chosen.start)}
+                  {selected ? ` · ${leadName(selected.id)}` : ''}
+                </p>
+              )}
+            </div>
+
+            {error?.source === 'book' && <Failure failure={error} />}
+
+            {lastBooking && (
+              <div className="mt-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2.5">
+                <p className="text-[11.5px] text-success">
+                  {t(COPY.booked)} · {stamp(lastBooking.booking.start_at)}
+                </p>
+                <p className="mt-1.5 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.remindersLabel)}</p>
+                {lastBooking.reminders.length === 0 ? (
+                  <p className="text-[11px] text-white/45">{t(COPY.remindersNone)}</p>
+                ) : (
+                  <ul className="space-y-0.5 text-[11px] text-white/70">
+                    {lastBooking.reminders.map((due) => (
+                      <li key={due}>{stamp(due)}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-1.5 text-[10.5px] text-white/35">{t(COPY.remindersNote)}</p>
+              </div>
+            )}
+          </Card>
+
+          {/* 4 — what is actually on the calendar and in the log. */}
+          <Card>
+            <CardHead
+              icon="Clock"
+              kicker={COPY.logKicker}
+              title={t(COPY.logTitle)}
+              subtitle={t(COPY.logSub)}
+            />
+
+            <div className="mt-2">
+              <Row label={t(COPY.countCalls)} value={num(counts.calls)} />
+              <Row label={t(COPY.countMeetings)} value={num(counts.meetings)} />
+              <Row label={t(COPY.countReferrals)} value={num(counts.referralAsks)} />
+            </div>
+
+            <h3 className="mt-3 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.meetings)}</h3>
+            {bookings.length === 0 ? (
+              <p className="mt-1.5 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.noBookings)}</p>
+            ) : (
+              <ul className="mt-1.5 space-y-1">
+                {bookings.map((entry) => (
+                  <BookingRow key={entry.id} booking={entry} who={leadName(entry.lead_id)} when={stamp(entry.start_at)} />
                 ))}
               </ul>
             )}
-            <p className="mt-1.5 text-[10.5px] text-white/35">{t(COPY.remindersNote)}</p>
-          </div>
-        )}
-      </Card>
 
-      {/* 4 — what is actually on the calendar and in the log. */}
-      <Card className="mt-3">
-        <CardHead
-          icon="Clock"
-          kicker={COPY.logKicker}
-          title={t(COPY.logTitle)}
-          subtitle={t(COPY.logSub)}
-        />
+            <h3 className="mt-4 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.callsLog)}</h3>
+            {leadId !== null && <p className="mt-1 text-[10.5px] text-white/30">{t(COPY.scopedToLead)}</p>}
+            {calls.length === 0 ? (
+              <p className="mt-1.5 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.noCalls)}</p>
+            ) : (
+              <ul className="mt-1.5 space-y-1">
+                {calls.map((call) => (
+                  <CallRow key={call.id} call={call} who={leadName(call.lead_id)} when={stamp(call.at)} />
+                ))}
+              </ul>
+            )}
+          </Card>
 
-        <div className="mt-2">
-          <Row label={t(COPY.countCalls)} value={num(counts.calls)} />
-          <Row label={t(COPY.countMeetings)} value={num(counts.meetings)} />
-          <Row label={t(COPY.countReferrals)} value={num(counts.referralAsks)} />
+          {/* 5 — the worker's own pass, on demand. */}
+          <Card>
+            <CardHead
+              icon="Zap"
+              kicker={COPY.dueKicker}
+              title={t(COPY.dueTitle)}
+              subtitle={t(COPY.dueSub)}
+            />
+
+            <p className="mt-3 text-[11.5px] leading-relaxed text-white/55">{t(COPY.dueNote)}</p>
+
+            <div className="mt-3">
+              <PrimaryButton onClick={() => void desk.runDue()} disabled={running || !online}>
+                {t(running ? COPY.dueRunning : COPY.dueRun)}
+              </PrimaryButton>
+              {lastRun && (
+                <p className="mt-2 text-center text-[10.5px] text-white/45">
+                  {t(dueResultLine(num(lastRun.reminders), num(lastRun.referrals)))}
+                </p>
+              )}
+            </div>
+
+            {error?.source === 'runDue' && <Failure failure={error} />}
+          </Card>
         </div>
+      </div>
 
-        <h3 className="mt-3 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.meetings)}</h3>
-        {bookings.length === 0 ? (
-          <p className="mt-1.5 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.noBookings)}</p>
-        ) : (
-          <ul className="mt-1.5 space-y-1">
-            {bookings.map((entry) => (
-              <BookingRow key={entry.id} booking={entry} who={leadName(entry.lead_id)} when={stamp(entry.start_at)} />
-            ))}
-          </ul>
-        )}
-
-        <h3 className="mt-4 text-[10px] uppercase tracking-[0.16em] text-white/30">{t(COPY.callsLog)}</h3>
-        {leadId !== null && <p className="mt-1 text-[10.5px] text-white/30">{t(COPY.scopedToLead)}</p>}
-        {calls.length === 0 ? (
-          <p className="mt-1.5 text-[11.5px] text-white/30">{t(loading && online ? COPY.loading : COPY.noCalls)}</p>
-        ) : (
-          <ul className="mt-1.5 space-y-1">
-            {calls.map((call) => (
-              <CallRow key={call.id} call={call} who={leadName(call.lead_id)} when={stamp(call.at)} />
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      {/* 5 — the worker's own pass, on demand. */}
-      <Card className="mt-3">
-        <CardHead
-          icon="Zap"
-          kicker={COPY.dueKicker}
-          title={t(COPY.dueTitle)}
-          subtitle={t(COPY.dueSub)}
-        />
-
-        <p className="mt-3 text-[11.5px] leading-relaxed text-white/55">{t(COPY.dueNote)}</p>
-
-        <div className="mt-3">
-          <PrimaryButton onClick={() => void desk.runDue()} disabled={running || !online}>
-            {t(running ? COPY.dueRunning : COPY.dueRun)}
-          </PrimaryButton>
-          {lastRun && (
-            <p className="mt-2 text-center text-[10.5px] text-white/45">
-              {t(dueResultLine(num(lastRun.reminders), num(lastRun.referrals)))}
-            </p>
-          )}
-        </div>
-
-        {error?.source === 'runDue' && <Failure failure={error} />}
-      </Card>
     </AppShell>
   )
 }

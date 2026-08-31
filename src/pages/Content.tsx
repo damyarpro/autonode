@@ -325,155 +325,159 @@ export default function Content() {
         </div>
       )}
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Workflow"
-          kicker={COPY.how}
-          title={t(COPY.howTitle)}
-          subtitle={t(COPY.howSub)}
-          gradient={['#4c1d95', '#8b5cf6']}
-        />
-        <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.howBody)}</p>
-      </Card>
+      {/* The work column and the results column: on a wide screen the pieces
+          stand beside the form that makes them instead of a scroll below it. */}
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
+        <div className="space-y-3">
+          <Card>
+            <CardHead
+              icon="Workflow"
+              kicker={COPY.how}
+              title={t(COPY.howTitle)}
+              subtitle={t(COPY.howSub)}
+              gradient={['#4c1d95', '#8b5cf6']}
+            />
+            <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.howBody)}</p>
+          </Card>
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Shield"
-          kicker={COPY.delivery}
-          title={t(COPY.deliveryTitle)}
-          subtitle={t(COPY.deliverySub)}
-          gradient={['#155e75', '#22d3ee']}
-        />
-        <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.deliveryBody)}</p>
-        {Object.keys(delivery).length === 0 ? (
-          <p className="mt-2 text-[11px] text-white/30">{t(COPY.deliveryUnknown)}</p>
-        ) : (
-          <ul className="mt-3 space-y-1.5">
-            {CONTENT_CHANNELS.filter((channel) => delivery[channel]).map((channel) => (
-              <li key={channel} className="flex items-center gap-2.5">
-                <NodeIcon icon={channel} size={22} />
-                <span className="text-[12px] text-white/70">{t(CHANNEL_LABEL[channel])}</span>
-                <span className="ms-auto">
-                  <Chip tone={delivery[channel] === 'live' ? 'warm' : 'accent'}>
-                    {t(delivery[channel] === 'live' ? COPY.live : COPY.simulated)}
-                  </Chip>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card className="mt-3">
-        <CardHead
-          icon="Pencil"
-          kicker={COPY.produce}
-          title={t(COPY.produceTitle)}
-          subtitle={t(COPY.produceSub)}
-          gradient={['#6d28d9', '#8b5cf6']}
-        />
-
-        <form className="mt-4 flex flex-col gap-4" onSubmit={submit}>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label={COPY.countLabel}
-              htmlFor="content-count"
-              hint={{
-                fa: COPY.countHint.fa.replace('{max}', n(String(CONTENT_LIMITS.count))),
-                en: COPY.countHint.en.replace('{max}', String(CONTENT_LIMITS.count)),
-              }}
-            >
-              <input
-                id="content-count"
-                inputMode="numeric"
-                value={n(count)}
-                onChange={(event) => {
-                  clearError()
-                  setCount(clamp(event.target.value, CONTENT_LIMITS.count))
-                }}
-                className={`${SHELL} mt-1.5 text-start`}
-              />
-            </Field>
-
-            <Field label={COPY.perDayLabel} htmlFor="content-per-day" hint={COPY.perDayHint}>
-              <input
-                id="content-per-day"
-                inputMode="numeric"
-                value={n(perDay)}
-                onChange={(event) => {
-                  clearError()
-                  setPerDay(clamp(event.target.value, CONTENT_LIMITS.perDay))
-                }}
-                className={`${SHELL} mt-1.5 text-start`}
-              />
-            </Field>
-          </div>
-
-          <Field label={COPY.channelsLabel} htmlFor="content-channels" hint={COPY.channelsHint}>
-            <div id="content-channels" className="mt-1.5 flex flex-wrap gap-1.5">
-              {CONTENT_CHANNELS.map((channel) => {
-                const on = channels.includes(channel)
-                return (
-                  <button
-                    key={channel}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggleChannel(channel)}
-                    className={`inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-1 text-[11px] transition ${
-                      on ? 'bg-accent text-white' : 'border border-hairline bg-white/[0.03] text-white/50 hover:text-white/85'
-                    }`}
-                  >
-                    <NodeIcon icon={channel} size={20} />
-                    {t(CHANNEL_LABEL[channel])}
-                  </button>
-                )
-              })}
-            </div>
-          </Field>
-
-          <p className="text-[10.5px] text-white/30">{t(COPY.localeNote)}</p>
-
-          {plainError && (
-            <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
-              <p className="text-[11.5px] text-[#ff9a76]">{t(plainError)}</p>
-              {error && error.messages.length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
-                  {error.messages.map((code) => (
-                    <li key={code}>{t(explainCode(code, undefined, n))}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          <div>
-            <PrimaryButton type="submit" disabled={producing || !online}>
-              {t(producing ? COPY.producingNow : COPY.produceNow)}
-            </PrimaryButton>
-            {lastProduced && (
-              <div className="mt-2">
-                <Row label={t(COPY.producedLine)} value={num(lastProduced.count)} />
-                <Row
-                  label={t(COPY.producedByLabel)}
-                  value={t(bi(SOURCE_LABEL, lastProduced.producedBy))}
-                />
-              </div>
+          <Card>
+            <CardHead
+              icon="Shield"
+              kicker={COPY.delivery}
+              title={t(COPY.deliveryTitle)}
+              subtitle={t(COPY.deliverySub)}
+              gradient={['#155e75', '#22d3ee']}
+            />
+            <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.deliveryBody)}</p>
+            {Object.keys(delivery).length === 0 ? (
+              <p className="mt-2 text-[11px] text-white/30">{t(COPY.deliveryUnknown)}</p>
+            ) : (
+              <ul className="mt-3 space-y-1.5">
+                {CONTENT_CHANNELS.filter((channel) => delivery[channel]).map((channel) => (
+                  <li key={channel} className="flex items-center gap-2.5">
+                    <NodeIcon icon={channel} size={22} />
+                    <span className="text-[12px] text-white/70">{t(CHANNEL_LABEL[channel])}</span>
+                    <span className="ms-auto">
+                      <Chip tone={delivery[channel] === 'live' ? 'warm' : 'accent'}>
+                        {t(delivery[channel] === 'live' ? COPY.live : COPY.simulated)}
+                      </Chip>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-        </form>
-      </Card>
+          </Card>
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Send"
-          kicker={COPY.publish}
-          title={t(COPY.publishTitle)}
-          subtitle={t(COPY.publishSub)}
-          gradient={['#065f46', '#34d399']}
-        />
-        <div className="mt-3">
-          <Row label={t(COPY.pendingCount)} value={online ? num(pending) : '—'} />
-          {lastPublished && <Row label={t(COPY.publishedCount)} value={num(lastPublished.published)} />}
+          <Card>
+            <CardHead
+              icon="Pencil"
+              kicker={COPY.produce}
+              title={t(COPY.produceTitle)}
+              subtitle={t(COPY.produceSub)}
+              gradient={['#6d28d9', '#8b5cf6']}
+            />
+
+            <form className="mt-4 flex flex-col gap-4" onSubmit={submit}>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label={COPY.countLabel}
+                  htmlFor="content-count"
+                  hint={{
+                    fa: COPY.countHint.fa.replace('{max}', n(String(CONTENT_LIMITS.count))),
+                    en: COPY.countHint.en.replace('{max}', String(CONTENT_LIMITS.count)),
+                  }}
+                >
+                  <input
+                    id="content-count"
+                    inputMode="numeric"
+                    value={n(count)}
+                    onChange={(event) => {
+                      clearError()
+                      setCount(clamp(event.target.value, CONTENT_LIMITS.count))
+                    }}
+                    className={`${SHELL} mt-1.5 text-start`}
+                  />
+                </Field>
+
+                <Field label={COPY.perDayLabel} htmlFor="content-per-day" hint={COPY.perDayHint}>
+                  <input
+                    id="content-per-day"
+                    inputMode="numeric"
+                    value={n(perDay)}
+                    onChange={(event) => {
+                      clearError()
+                      setPerDay(clamp(event.target.value, CONTENT_LIMITS.perDay))
+                    }}
+                    className={`${SHELL} mt-1.5 text-start`}
+                  />
+                </Field>
+              </div>
+
+              <Field label={COPY.channelsLabel} htmlFor="content-channels" hint={COPY.channelsHint}>
+                <div id="content-channels" className="mt-1.5 flex flex-wrap gap-1.5">
+                  {CONTENT_CHANNELS.map((channel) => {
+                    const on = channels.includes(channel)
+                    return (
+                      <button
+                        key={channel}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleChannel(channel)}
+                        className={`inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-1 text-[11px] transition ${
+                          on ? 'bg-accent text-white' : 'border border-hairline bg-white/[0.03] text-white/50 hover:text-white/85'
+                        }`}
+                      >
+                        <NodeIcon icon={channel} size={20} />
+                        {t(CHANNEL_LABEL[channel])}
+                      </button>
+                    )
+                  })}
+                </div>
+              </Field>
+
+              <p className="text-[10.5px] text-white/30">{t(COPY.localeNote)}</p>
+
+              {plainError && (
+                <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
+                  <p className="text-[11.5px] text-[#ff9a76]">{t(plainError)}</p>
+                  {error && error.messages.length > 0 && (
+                    <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
+                      {error.messages.map((code) => (
+                        <li key={code}>{t(explainCode(code, undefined, n))}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <PrimaryButton type="submit" disabled={producing || !online}>
+                  {t(producing ? COPY.producingNow : COPY.produceNow)}
+                </PrimaryButton>
+                {lastProduced && (
+                  <div className="mt-2">
+                    <Row label={t(COPY.producedLine)} value={num(lastProduced.count)} />
+                    <Row
+                      label={t(COPY.producedByLabel)}
+                      value={t(bi(SOURCE_LABEL, lastProduced.producedBy))}
+                    />
+                  </div>
+                )}
+              </div>
+            </form>
+          </Card>
+
+          <Card>
+            <CardHead
+              icon="Send"
+              kicker={COPY.publish}
+              title={t(COPY.publishTitle)}
+              subtitle={t(COPY.publishSub)}
+              gradient={['#065f46', '#34d399']}
+            />
+            <div className="mt-3">
+              <Row label={t(COPY.pendingCount)} value={online ? num(pending) : '—'} />
+              {lastPublished && <Row label={t(COPY.publishedCount)} value={num(lastPublished.published)} />}
         </div>
         <p className="mt-1 text-[10.5px] leading-relaxed text-white/30">{t(COPY.publishNote)}</p>
         <div className="mt-3">
@@ -483,67 +487,70 @@ export default function Content() {
         </div>
       </Card>
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Layers"
-          kicker={COPY.list}
-          title={t(COPY.listTitle)}
-          subtitle={t(COPY.listSub)}
-          gradient={['#3730a3', '#6366f1']}
-        />
-
-        <div className="mt-3 space-y-2">
-          <FilterRow label={COPY.filterStatus}>
-            <FilterButton on={filter.status === ''} onClick={() => setFilter({ status: '' })}>
-              {t(COPY.all)}
-            </FilterButton>
-            {statuses.map((status) => (
-              <FilterButton
-                key={status}
-                on={filter.status === status}
-                onClick={() => setFilter({ status })}
-              >
-                {t(STATUS_LABEL[status] ?? { fa: status, en: status })}
-              </FilterButton>
-            ))}
-          </FilterRow>
-
-          <FilterRow label={COPY.filterChannel}>
-            <FilterButton on={filter.channel === ''} onClick={() => setFilter({ channel: '' })}>
-              {t(COPY.all)}
-            </FilterButton>
-            {CONTENT_CHANNELS.map((channel) => (
-              <FilterButton
-                key={channel}
-                on={filter.channel === channel}
-                onClick={() => setFilter({ channel })}
-              >
-                {t(CHANNEL_LABEL[channel])}
-              </FilterButton>
-            ))}
-          </FilterRow>
         </div>
 
-        <div className="mt-3 space-y-2">
-          {loading ? (
-            <p className="py-4 text-center text-[11.5px] text-white/30">{t(COPY.loading)}</p>
-          ) : pieces.length === 0 ? (
-            <p className="py-4 text-center text-[11.5px] text-white/30">
-              {t(!online ? COPY.offline : filtered ? COPY.emptyFiltered : COPY.empty)}
-            </p>
-          ) : (
-            pieces.map((piece) => (
-              <PieceRow
-                key={piece.id}
-                piece={piece}
-                open={opened === piece.id}
-                onToggle={() => setOpened((prev) => (prev === piece.id ? null : piece.id))}
-                onRemove={() => void remove(piece.id)}
-              />
-            ))
-          )}
-        </div>
-      </Card>
+        <Card>
+          <CardHead
+            icon="Layers"
+            kicker={COPY.list}
+            title={t(COPY.listTitle)}
+            subtitle={t(COPY.listSub)}
+            gradient={['#3730a3', '#6366f1']}
+          />
+
+          <div className="mt-3 space-y-2">
+            <FilterRow label={COPY.filterStatus}>
+              <FilterButton on={filter.status === ''} onClick={() => setFilter({ status: '' })}>
+                {t(COPY.all)}
+              </FilterButton>
+              {statuses.map((status) => (
+                <FilterButton
+                  key={status}
+                  on={filter.status === status}
+                  onClick={() => setFilter({ status })}
+                >
+                  {t(STATUS_LABEL[status] ?? { fa: status, en: status })}
+                </FilterButton>
+              ))}
+            </FilterRow>
+
+            <FilterRow label={COPY.filterChannel}>
+              <FilterButton on={filter.channel === ''} onClick={() => setFilter({ channel: '' })}>
+                {t(COPY.all)}
+              </FilterButton>
+              {CONTENT_CHANNELS.map((channel) => (
+                <FilterButton
+                  key={channel}
+                  on={filter.channel === channel}
+                  onClick={() => setFilter({ channel })}
+                >
+                  {t(CHANNEL_LABEL[channel])}
+                </FilterButton>
+              ))}
+            </FilterRow>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {loading ? (
+              <p className="py-4 text-center text-[11.5px] text-white/30">{t(COPY.loading)}</p>
+            ) : pieces.length === 0 ? (
+              <p className="py-4 text-center text-[11.5px] text-white/30">
+                {t(!online ? COPY.offline : filtered ? COPY.emptyFiltered : COPY.empty)}
+              </p>
+            ) : (
+              pieces.map((piece) => (
+                <PieceRow
+                  key={piece.id}
+                  piece={piece}
+                  open={opened === piece.id}
+                  onToggle={() => setOpened((prev) => (prev === piece.id ? null : piece.id))}
+                  onRemove={() => void remove(piece.id)}
+                />
+              ))
+            )}
+          </div>
+        </Card>
+      </div>
     </AppShell>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NodeIcon } from '../icons'
 import { IconTile } from '../Icon'
 import { useI18n } from '../../i18n/I18nProvider'
@@ -11,6 +11,12 @@ import { filterPalette, findGroup, findNode, membersOf } from './useGraphEditor'
  * on one node or one group. Plain DOM, so unlike the flow canvas it mirrors with
  * the locale (rule 3) — the menu opens from the pointer towards the reading
  * direction, and never off the edge of the screen.
+ *
+ * Two shapes, one menu. With room, it hangs from the pointer and is clamped
+ * against its own measured height so the last item is never under the fold.
+ * Below `sm` there is no room to hang anything: a 268px card next to a finger
+ * on a 390px screen either covers the node it is about or runs off the edge, so
+ * it docks to the bottom instead, full width, the way the node sheet does.
  */
 
 const COPY = {
@@ -55,6 +61,38 @@ export type MenuActions = {
 const MENU_WIDTH = 268
 const MARGIN = 10
 
+/** Narrower than this and the menu docks to the bottom edge instead. */
+const COMPACT = '(max-width: 639px)'
+
+/** Shared with the canvas, which has its own reason to know (see `autoPanOnConnect`). */
+export function useCompact(): boolean {
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(COMPACT).matches,
+  )
+  useEffect(() => {
+    const query = window.matchMedia(COMPACT)
+    const onChange = () => setCompact(query.matches)
+    onChange()
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+  return compact
+}
+
+/** The window, as state, so a rotation re-clamps the menu instead of stranding it. */
+function useViewport(): { width: number; height: number } {
+  const [size, setSize] = useState(() => ({
+    width: typeof window === 'undefined' ? 1024 : window.innerWidth,
+    height: typeof window === 'undefined' ? 768 : window.innerHeight,
+  }))
+  useEffect(() => {
+    const onResize = () => setSize({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return size
+}
+
 function MenuItem({
   label,
   hint,
@@ -72,7 +110,7 @@ function MenuItem({
       role="menuitem"
       onClick={onPick}
       className={[
-        'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[12px] transition-colors',
+        'flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-start text-[12px] transition-colors sm:py-2',
         danger ? 'text-red-300/85 hover:bg-white/[0.06] hover:text-red-300' : 'text-white/80 hover:bg-white/[0.06]',
       ].join(' ')}
     >
@@ -94,7 +132,7 @@ function KindRow({ kind, onPick }: { kind: NodeKind; onPick: () => void }) {
       type="button"
       role="menuitem"
       onClick={onPick}
-      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition-colors hover:bg-white/[0.06]"
+      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-white/[0.06] sm:py-1.5"
     >
       {kind.brand ? (
         <IconTile name={kind.brand.iconName} color={kind.brand.color} gradient={kind.brand.gradient} size={26} />
@@ -122,7 +160,7 @@ function PaletteMenu({ onPick, onNewGroup }: { onPick: (kind: NodeKind) => void;
 
   return (
     <>
-      <div className="px-2.5 pb-2 pt-2.5">
+      <div className="shrink-0 px-2.5 pb-2 pt-2.5">
         <div className="pb-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/30">{t(COPY.addNode)}</div>
         <input
           ref={search}
@@ -133,7 +171,7 @@ function PaletteMenu({ onPick, onNewGroup }: { onPick: (kind: NodeKind) => void;
         />
       </div>
 
-      <div className="max-h-[46vh] overflow-y-auto px-1 pb-1">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
         {groups.length === 0 && <p className="px-2.5 py-3 text-[11px] text-white/40">{t(COPY.noMatch)}</p>}
         {groups.map((group) => (
           <div key={group.category}>
@@ -145,7 +183,7 @@ function PaletteMenu({ onPick, onNewGroup }: { onPick: (kind: NodeKind) => void;
         ))}
       </div>
 
-      <div className="border-t border-hairline p-1">
+      <div className="shrink-0 border-t border-hairline p-1">
         <MenuItem label={t(COPY.newGroup)} onPick={onNewGroup} />
       </div>
     </>
@@ -158,7 +196,7 @@ function NodeMenu({ node, graph, actions }: { node: BoardNode; graph: BoardGraph
   const groups = graph.groups.filter((group) => group.id !== node.group)
 
   return (
-    <div className="p-1">
+    <div className="min-h-0 flex-1 overflow-y-auto p-1">
       <MenuItem label={t(COPY.rename)} onPick={() => actions.renameNode(node.id)} />
       <MenuItem label={t(COPY.duplicate)} onPick={() => actions.duplicateNode(node.id)} />
       {kind?.to && <MenuItem label={t(COPY.openTool)} onPick={() => actions.openLink(kind.to as string, false)} />}
@@ -195,6 +233,10 @@ export default function BoardContextMenu({
 }) {
   const { t, num, isRtl } = useI18n()
   const box = useRef<HTMLDivElement>(null)
+  const compact = useCompact()
+  const viewport = useViewport()
+  /** The menu's own height, so the clamp below knows what it is clamping. */
+  const [height, setHeight] = useState(0)
 
   // Any click elsewhere, any Escape, closes. `pointerdown` rather than `click`
   // so the menu is gone before the canvas reacts to the same press.
@@ -213,14 +255,38 @@ export default function BoardContextMenu({
     }
   }, [onClose])
 
-  const viewportWidth = typeof window === 'undefined' ? 1024 : window.innerWidth
-  const viewportHeight = typeof window === 'undefined' ? 768 : window.innerHeight
+  // Measured before paint, so the menu is never drawn once in the wrong place
+  // and corrected afterwards. A palette that shrinks as you type re-measures.
+  useLayoutEffect(() => {
+    const element = box.current
+    if (!element) return
+    setHeight(element.getBoundingClientRect().height)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setHeight(element.getBoundingClientRect().height))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [menu.kind, compact])
+
+  const { width: viewportWidth, height: viewportHeight } = viewport
+  const room = viewportHeight - MARGIN * 2
 
   // The menu hangs from the pointer towards the reading direction, so the
-  // start edge is the right one in Persian and the left one in English.
+  // start edge is the right one in Persian and the left one in English. Its
+  // measured height is what keeps the bottom of it on screen: clamping against
+  // a guessed 200px left the palette's last rows under the fold.
   const startFromPointer = isRtl ? viewportWidth - menu.cx : menu.cx
   const start = Math.max(MARGIN, Math.min(startFromPointer, viewportWidth - MENU_WIDTH - MARGIN))
-  const top = Math.max(MARGIN, Math.min(menu.cy, viewportHeight - 200))
+  const top = Math.max(MARGIN, Math.min(menu.cy, viewportHeight - (height || 220) - MARGIN))
+
+  const placement = compact
+    ? // Docked: full width at the bottom edge, where a thumb can reach every row.
+      {
+        insetInlineStart: 0,
+        insetInlineEnd: 0,
+        bottom: 0,
+        maxHeight: Math.round(viewportHeight * 0.72),
+      }
+    : { insetInlineStart: start, top, width: MENU_WIDTH, maxHeight: room }
 
   const node = menu.kind === 'node' ? findNode(graph, menu.nodeId) : undefined
   const group = menu.kind === 'group' ? findGroup(graph, menu.groupId) : undefined
@@ -233,15 +299,20 @@ export default function BoardContextMenu({
       ref={box}
       role="menu"
       aria-label={t(COPY.menu)}
-      className="fixed z-50 overflow-hidden rounded-xl border border-hairline bg-panel/95 shadow-[0_18px_50px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
-      style={{ insetInlineStart: start, top, width: MENU_WIDTH, maxHeight: viewportHeight - top - MARGIN }}
+      className={[
+        'fixed z-50 flex flex-col overflow-hidden border border-hairline bg-panel/95 shadow-[0_18px_50px_-20px_rgba(0,0,0,0.9)] backdrop-blur',
+        compact ? 'rounded-t-2xl border-b-0 pb-[env(safe-area-inset-bottom)]' : 'rounded-xl',
+      ].join(' ')}
+      style={placement}
     >
+      {compact && <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/15" />}
+
       {menu.kind === 'pane' && <PaletteMenu onPick={actions.addKind} onNewGroup={actions.addGroup} />}
 
       {menu.kind === 'node' && node && <NodeMenu node={node} graph={graph} actions={actions} />}
 
       {menu.kind === 'group' && group && (
-        <div className="p-1">
+        <div className="min-h-0 flex-1 overflow-y-auto p-1">
           <SectionLabel>{`${t(COPY.groupActions)} · ${t(group.label)}`}</SectionLabel>
           <MenuItem label={t(COPY.renameGroup)} onPick={() => actions.renameGroup(group.id)} />
           <MenuItem

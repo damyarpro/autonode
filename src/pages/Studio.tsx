@@ -282,9 +282,13 @@ export default function Studio() {
         ) : (
           <p className="mt-3 text-[11.5px] text-white/30">{t(media.loading ? COPY.loading : COPY.offline)}</p>
         )}
-        <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.liveBody)}</p>
-        <p className="mt-2 text-[12.5px] leading-relaxed text-white/70">{t(COPY.liveHow)}</p>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-white/40">{t(COPY.liveUnverified)}</p>
+        {/* Prose, not layout: past about seventy characters a line stops being
+            read, and this card is the full width of the page. */}
+        <div className="max-w-3xl">
+          <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.liveBody)}</p>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-white/70">{t(COPY.liveHow)}</p>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-white/40">{t(COPY.liveUnverified)}</p>
+        </div>
       </Card>
 
       {!online && (
@@ -300,99 +304,103 @@ export default function Studio() {
         </div>
       )}
 
-      <Card className="mt-3">
-        <BrandHead kind="voice" kicker={COPY.voiceKicker} title={COPY.voiceTitle} adapter={adapters?.voiceover} />
+      {/* Two independent generators. They are the same shape and neither
+          feeds the other, so on a wide screen they sit abreast. */}
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
+        <Card>
+          <BrandHead kind="voice" kicker={COPY.voiceKicker} title={COPY.voiceTitle} adapter={adapters?.voiceover} />
 
-        <form className="mt-4 flex flex-col gap-4" onSubmit={submitVoice}>
-          <Field label={COPY.scriptLabel} htmlFor="studio-script" hint={COPY.scriptHint}>
-            <Counted
-              id="studio-script"
-              rows={6}
-              value={script}
-              limit={MEDIA_LIMITS.script}
-              placeholder={t(COPY.scriptPlaceholder)}
-              onChange={(next) => {
-                media.clearError()
-                setScript(next)
-              }}
-            />
-          </Field>
+          <form className="mt-4 flex flex-col gap-4" onSubmit={submitVoice}>
+            <Field label={COPY.scriptLabel} htmlFor="studio-script" hint={COPY.scriptHint}>
+              <Counted
+                id="studio-script"
+                rows={6}
+                value={script}
+                limit={MEDIA_LIMITS.script}
+                placeholder={t(COPY.scriptPlaceholder)}
+                onChange={(next) => {
+                  media.clearError()
+                  setScript(next)
+                }}
+              />
+            </Field>
 
-          <Field label={COPY.voiceIdLabel} htmlFor="studio-voice" hint={COPY.voiceIdHint}>
-            <input
-              id="studio-voice"
-              dir="ltr"
-              value={voice}
-              maxLength={MEDIA_LIMITS.voice}
-              placeholder={t(COPY.voiceIdPlaceholder)}
-              onChange={(event) => setVoice(event.target.value)}
-              className={`${SHELL} mt-1.5 text-start`}
-            />
-          </Field>
+            <Field label={COPY.voiceIdLabel} htmlFor="studio-voice" hint={COPY.voiceIdHint}>
+              <input
+                id="studio-voice"
+                dir="ltr"
+                value={voice}
+                maxLength={MEDIA_LIMITS.voice}
+                placeholder={t(COPY.voiceIdPlaceholder)}
+                onChange={(event) => setVoice(event.target.value)}
+                className={`${SHELL} mt-1.5 text-start`}
+              />
+            </Field>
 
-          <LocalePicker id="studio-voice-locale" value={voiceLocale} onChange={setVoiceLocale} />
+            <LocalePicker id="studio-voice-locale" value={voiceLocale} onChange={setVoiceLocale} />
 
-          <div>
-            <PrimaryButton type="submit" disabled={media.voicing || !script.trim()}>
-              {t(media.voicing ? COPY.voiceBusy : COPY.voiceSubmit)}
-            </PrimaryButton>
-            {!script.trim() && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.voiceBlocked)}</p>}
-          </div>
-        </form>
+            <div>
+              <PrimaryButton type="submit" disabled={media.voicing || !script.trim()}>
+                {t(media.voicing ? COPY.voiceBusy : COPY.voiceSubmit)}
+              </PrimaryButton>
+              {!script.trim() && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.voiceBlocked)}</p>}
+            </div>
+          </form>
 
-        {latestVoice && (
-          <div className="mt-4 border-t border-hairline pt-3">
-            <div className="text-[10px] text-white/35">{t(COPY.voiceLatest)}</div>
-            <VoiceAnswer job={latestVoice} clock={clock} secs={secs} />
-          </div>
-        )}
-      </Card>
+          {latestVoice && (
+            <div className="mt-4 border-t border-hairline pt-3">
+              <div className="text-[10px] text-white/35">{t(COPY.voiceLatest)}</div>
+              <VoiceAnswer job={latestVoice} clock={clock} secs={secs} />
+            </div>
+          )}
+        </Card>
 
-      <Card className="mt-3">
-        <BrandHead kind="video" kicker={COPY.videoKicker} title={COPY.videoTitle} adapter={adapters?.adVideo} />
+        <Card>
+          <BrandHead kind="video" kicker={COPY.videoKicker} title={COPY.videoTitle} adapter={adapters?.adVideo} />
 
-        <form className="mt-4 flex flex-col gap-4" onSubmit={submitVideo}>
-          <Field label={COPY.briefLabel} htmlFor="studio-brief" hint={COPY.briefHint}>
-            <Counted
-              id="studio-brief"
-              rows={5}
-              value={brief}
-              limit={MEDIA_LIMITS.brief}
-              placeholder={t(COPY.briefPlaceholder)}
-              onChange={(next) => {
-                media.clearError()
-                setBrief(next)
-              }}
-            />
-          </Field>
+          <form className="mt-4 flex flex-col gap-4" onSubmit={submitVideo}>
+            <Field label={COPY.briefLabel} htmlFor="studio-brief" hint={COPY.briefHint}>
+              <Counted
+                id="studio-brief"
+                rows={5}
+                value={brief}
+                limit={MEDIA_LIMITS.brief}
+                placeholder={t(COPY.briefPlaceholder)}
+                onChange={(next) => {
+                  media.clearError()
+                  setBrief(next)
+                }}
+              />
+            </Field>
 
-          <Field label={COPY.styleLabel} htmlFor="studio-style" hint={COPY.styleHint}>
-            <input
-              id="studio-style"
-              value={style}
-              maxLength={MEDIA_LIMITS.style}
-              onChange={(event) => setStyle(event.target.value)}
-              className={`${SHELL} mt-1.5`}
-            />
-          </Field>
+            <Field label={COPY.styleLabel} htmlFor="studio-style" hint={COPY.styleHint}>
+              <input
+                id="studio-style"
+                value={style}
+                maxLength={MEDIA_LIMITS.style}
+                onChange={(event) => setStyle(event.target.value)}
+                className={`${SHELL} mt-1.5`}
+              />
+            </Field>
 
-          <LocalePicker id="studio-video-locale" value={videoLocale} onChange={setVideoLocale} />
+            <LocalePicker id="studio-video-locale" value={videoLocale} onChange={setVideoLocale} />
 
-          <div>
-            <PrimaryButton type="submit" disabled={media.filming || !brief.trim()}>
-              {t(media.filming ? COPY.videoBusy : COPY.videoSubmit)}
-            </PrimaryButton>
-            {!brief.trim() && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.videoBlocked)}</p>}
-          </div>
-        </form>
+            <div>
+              <PrimaryButton type="submit" disabled={media.filming || !brief.trim()}>
+                {t(media.filming ? COPY.videoBusy : COPY.videoSubmit)}
+              </PrimaryButton>
+              {!brief.trim() && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.videoBlocked)}</p>}
+            </div>
+          </form>
 
-        {latestVideo && (
-          <div className="mt-4 border-t border-hairline pt-3">
-            <div className="text-[10px] text-white/35">{t(COPY.videoLatest)}</div>
-            <VideoAnswer job={latestVideo} secs={secs} />
-          </div>
-        )}
-      </Card>
+          {latestVideo && (
+            <div className="mt-4 border-t border-hairline pt-3">
+              <div className="text-[10px] text-white/35">{t(COPY.videoLatest)}</div>
+              <VideoAnswer job={latestVideo} secs={secs} />
+            </div>
+          )}
+        </Card>
+      </div>
 
       {error && <ErrorBox failure={error} />}
 
@@ -428,7 +436,7 @@ export default function Studio() {
         ) : media.jobs.length === 0 ? (
           <p className="mt-3 text-[11.5px] text-white/30">{t(online ? COPY.empty : COPY.offline)}</p>
         ) : (
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 grid grid-cols-1 items-start gap-2 xl:grid-cols-2">
             {media.jobs.map((job) => (
               <JobRow
                 key={job.id}

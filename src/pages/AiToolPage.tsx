@@ -145,89 +145,101 @@ function ToolView({ spec }: { spec: AiToolSpec }) {
         }
       />
 
-      <Card className="mt-4">
-        <CardHead
-          icon={spec.icon}
-          gradient={spec.gradient}
-          title={t(COPY.formTitle)}
-          subtitle={t(COPY.formSub)}
-        />
+      {/*
+        Stacked on a phone, because the form is what you touch first. Above `lg`
+        the answer stops being a scroll away: the inputs hold a sticky column of
+        their own so a re-run is one glance from the result, and the answer keeps
+        a column narrow enough to read rather than the full width of the page.
+      */}
+      <div className="mt-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+        <div className="lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto">
+          <Card>
+            <CardHead
+              icon={spec.icon}
+              gradient={spec.gradient}
+              title={t(COPY.formTitle)}
+              subtitle={t(COPY.formSub)}
+            />
 
-        <form className="mt-4 flex flex-col gap-4" onSubmit={submit}>
-          {spec.fields.map((field) => (
-            <Field key={field.id} field={field} value={values[field.id] ?? ''} onChange={set} />
-          ))}
+            <form className="mt-4 flex flex-col gap-4" onSubmit={submit}>
+              {spec.fields.map((field) => (
+                <Field key={field.id} field={field} value={values[field.id] ?? ''} onChange={set} />
+              ))}
 
-          {error && (
-            <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
-              <p className="text-[11.5px] text-[#ff9a76]">{t(errorLine)}</p>
-              {error.messages.length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
-                  {error.messages.map((message) => (
-                    <li key={message}>{t(explainError(message, spec, n))}</li>
-                  ))}
-                </ul>
+              {error && (
+                <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
+                  <p className="text-[11.5px] text-[#ff9a76]">{t(errorLine)}</p>
+                  {error.messages.length > 0 && (
+                    <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
+                      {error.messages.map((message) => (
+                        <li key={message}>{t(explainError(message, spec, n))}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
-            </div>
-          )}
 
-          <div>
-            <PrimaryButton type="submit" disabled={running || missingRequired}>
-              {running ? t(COPY.runningNow) : t(COPY.submit)}
-            </PrimaryButton>
-            {running && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.runningNote)}</p>}
-          </div>
-        </form>
-      </Card>
-
-      {!online && (
-        <p className="mt-3 rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5 text-[11.5px] text-white/40">
-          {t(COPY.historyOffline)}
-        </p>
-      )}
-
-      {latest && (
-        <Card className="mt-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-[14px] font-semibold text-white/90">{t(COPY.answer)}</h2>
-              <p className="text-[10.5px] text-white/35">{t(COPY.answerSub)}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Chip tone={latest.result.producedBy === 'claude' ? 'accent' : 'neutral'}>
-                {t(latest.result.producedBy === 'claude' ? COPY.byClaude : COPY.byTemplate)}
-              </Chip>
-              <CopyButton spec={spec} result={latest.result} />
-            </div>
-          </div>
-          <Answer spec={spec} result={latest.result} />
-        </Card>
-      )}
-
-      <Card className="mt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-[14px] font-semibold text-white/90">
-              {t(COPY.history)} <span className="text-white/35">{num(runs.length)}</span>
-            </h2>
-            <p className="text-[10.5px] text-white/35">{t(COPY.historySub)}</p>
-          </div>
+              <div>
+                <PrimaryButton type="submit" disabled={running || missingRequired}>
+                  {running ? t(COPY.runningNow) : t(COPY.submit)}
+                </PrimaryButton>
+                {running && <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.runningNote)}</p>}
+              </div>
+            </form>
+          </Card>
         </div>
 
-        {loading ? (
-          <p className="mt-3 text-[11.5px] text-white/30">{t(COPY.loading)}</p>
-        ) : runs.length === 0 ? (
-          <p className="mt-3 text-[11.5px] text-white/30">{t(online ? COPY.historyEmpty : COPY.historyOffline)}</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2">
-            {runs.map((item) => (
-              <li key={item.id}>
-                <HistoryRow spec={spec} run={item} onRemove={() => void remove(item.id)} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+        <div className="mt-4 min-w-0 lg:mt-0">
+          {!online && (
+            <p className="mt-3 rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5 text-[11.5px] text-white/40 first:mt-0">
+              {t(COPY.historyOffline)}
+            </p>
+          )}
+
+          {latest && (
+            <Card className="mt-4 first:mt-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-[14px] font-semibold text-white/90">{t(COPY.answer)}</h2>
+                  <p className="text-[10.5px] text-white/35">{t(COPY.answerSub)}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Chip tone={latest.result.producedBy === 'claude' ? 'accent' : 'neutral'}>
+                    {t(latest.result.producedBy === 'claude' ? COPY.byClaude : COPY.byTemplate)}
+                  </Chip>
+                  <CopyButton spec={spec} result={latest.result} />
+                </div>
+              </div>
+              <Answer spec={spec} result={latest.result} />
+            </Card>
+          )}
+
+          <Card className="mt-4 first:mt-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[14px] font-semibold text-white/90">
+                  {t(COPY.history)} <span className="text-white/35">{num(runs.length)}</span>
+                </h2>
+                <p className="text-[10.5px] text-white/35">{t(COPY.historySub)}</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <p className="mt-3 text-[11.5px] text-white/30">{t(COPY.loading)}</p>
+            ) : runs.length === 0 ? (
+              <p className="mt-3 text-[11.5px] text-white/30">{t(online ? COPY.historyEmpty : COPY.historyOffline)}</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {runs.map((item) => (
+                  <li key={item.id}>
+                    <HistoryRow spec={spec} run={item} onRemove={() => void remove(item.id)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </div>
     </AppShell>
   )
 }

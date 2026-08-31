@@ -124,8 +124,10 @@ export default function Leads() {
         </span>
       </div>
 
+      {/* One pane at a time on a phone — a 45vw drawer beside a 390px table left
+          neither readable — and both panes at once as soon as there is room. */}
       <div className="flex min-h-0 flex-1">
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={`min-h-0 flex-1 overflow-auto ${detail ? 'hidden md:block' : ''}`}>
         {rows.length === 0 ? (
           <p className="p-8 text-center text-[12px] text-white/30">{online ? t(COPY.empty) : t(COPY.offline)}</p>
         ) : (
@@ -144,11 +146,13 @@ export default function Leads() {
                     <div className="font-medium text-white/85">{lead.name ?? '—'}</div>
                     <div className="text-[10px] text-white/35">{lead.handle ? `@${lead.handle}` : lead.source}</div>
                   </td>
+                  {/* One cell, two chips: six columns clipped their own labels
+                      at 390px, and they sit side by side wherever there is room. */}
                   <td className="py-2.5 pe-4">
-                    <Chip tone={lead.route}>{t(ROUTE_LABEL[lead.route])}</Chip>
-                  </td>
-                  <td className="py-2.5 pe-4">
-                    <Chip>{t(STAGE_LABEL[lead.stage] ?? { en: lead.stage, fa: lead.stage })}</Chip>
+                    <span className="flex flex-wrap items-center gap-1">
+                      <Chip tone={lead.route}>{t(ROUTE_LABEL[lead.route])}</Chip>
+                      <Chip>{t(STAGE_LABEL[lead.stage] ?? { en: lead.stage, fa: lead.stage })}</Chip>
+                    </span>
                   </td>
                   <td className="py-2.5 pe-4 text-white/55 tabular-nums">
                     {t(COPY.score)} {num(lead.score)}
@@ -165,7 +169,7 @@ export default function Leads() {
 
       {detail && (
         // In flow rather than an overlay, so the table keeps its own columns.
-        <aside className="flex w-[min(420px,45vw)] shrink-0 flex-col border-s border-hairline bg-panel">
+        <aside className="flex w-full shrink-0 flex-col border-hairline bg-panel md:w-[min(420px,45vw)] md:border-s xl:w-[460px]">
           <div className="flex items-center gap-3 border-b border-hairline px-5 py-3">
             <NodeIcon icon={detail.lead.source as IconKey} size={26} />
             <div className="min-w-0 flex-1">

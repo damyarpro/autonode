@@ -7,7 +7,7 @@ import type { Bi } from '../data/types'
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <section
-      className={`rounded-2xl border border-hairline bg-[linear-gradient(160deg,rgba(24,24,34,0.9),rgba(12,12,18,0.9))] p-4 ${className}`}
+      className={`rounded-2xl border border-hairline bg-[linear-gradient(160deg,rgba(24,24,34,0.9),rgba(12,12,18,0.9))] p-4 lg:p-5 ${className}`}
     >
       {children}
     </section>
@@ -56,23 +56,29 @@ export function Row({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+/**
+ * Full width by default, because on a phone it always is. `className` is how a
+ * wide layout caps it — a 1088px-wide button is a bar, not a button.
+ */
 export function PrimaryButton({
   children,
   onClick,
   type = 'button',
   disabled,
+  className = '',
 }: {
   children: ReactNode
   onClick?: () => void
   type?: 'button' | 'submit'
   disabled?: boolean
+  className?: string
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl bg-[linear-gradient(100deg,#4c1d95,#7c3aed)] py-2.5 text-[12.5px] font-medium text-white transition hover:brightness-110 disabled:opacity-40"
+      className={`w-full rounded-xl bg-[linear-gradient(100deg,#4c1d95,#7c3aed)] py-2.5 text-[12.5px] font-medium text-white transition hover:brightness-110 disabled:opacity-40 ${className}`}
     >
       {children}
     </button>

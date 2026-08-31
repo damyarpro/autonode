@@ -57,6 +57,10 @@ const COPY = {
   onBoard: { fa: 'روی بوم', en: 'On the board' },
   countsLine: { fa: '{nodes} گره · {edges} یال', en: '{nodes} nodes · {edges} edges' },
 
+  // the desktop panel
+  hidePanel: { fa: 'پنهان کردن پنل', en: 'Hide the panel' },
+  showPanel: { fa: 'نمایش پنل', en: 'Show the panel' },
+
   // leaving
   leaveTitle: { fa: 'بدون ذخیره بروی؟', en: 'Leave without saving?' },
   leaveBody: {
@@ -161,6 +165,8 @@ export default function BoardEditor() {
 
   const [note, setNote] = useState('')
   const [copied, setCopied] = useState(false)
+  /** Only ever false above `lg`, where the panel sits beside the canvas. */
+  const [panelOpen, setPanelOpen] = useState(true)
   /** The dialog that stands between unsaved work and leaving the page. */
   const [leaving, setLeaving] = useState<(() => void) | null>(null)
 
@@ -246,27 +252,45 @@ export default function BoardEditor() {
   const lastSavedAt = latest?.at ?? board?.updatedAt ?? null
   const shown = viewing ? viewing.graph : graph
 
-  const banner = (
+  const backButton = (
+    <button
+      type="button"
+      aria-label={t(COPY.backToList)}
+      title={t(COPY.backToList)}
+      onClick={() => {
+        if (dirtyRef.current) {
+          setLeaving(() => () => navigate('/boards'))
+          return
+        }
+        navigate('/boards')
+      }}
+      className="text-white/70 transition hover:text-white"
+    >
+      <Icon name="ChevronLeft" size={18} className="rtl:rotate-180" />
+    </button>
+  )
+
+  const banner = <PageBanner icon="Workflow" title={title} subtitle={COPY.subtitle} actions={backButton} />
+
+  // The same banner, plus the one control that only means anything beside a
+  // canvas: give the board the whole window.
+  const editorBanner = (
     <PageBanner
       icon="Workflow"
       title={title}
       subtitle={COPY.subtitle}
       actions={
-        <button
-          type="button"
-          aria-label={t(COPY.backToList)}
-          title={t(COPY.backToList)}
-          onClick={() => {
-            if (dirtyRef.current) {
-              setLeaving(() => () => navigate('/boards'))
-              return
-            }
-            navigate('/boards')
-          }}
-          className="text-white/70 transition hover:text-white"
-        >
-          <Icon name="ChevronLeft" size={18} className="rtl:rotate-180" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPanelOpen((open) => !open)}
+            aria-pressed={!panelOpen}
+            className="hidden rounded-lg border border-white/25 px-2.5 py-1 text-[10.5px] text-white/80 transition hover:border-white/60 hover:text-white lg:inline-flex"
+          >
+            {t(panelOpen ? COPY.hidePanel : COPY.showPanel)}
+          </button>
+          {backButton}
+        </div>
       }
     />
   )
@@ -324,244 +348,268 @@ export default function BoardEditor() {
   }
 
   return (
-    <AppShell>
-      {banner}
+    <AppShell flush>
+      {/*
+        A stack on a phone, two columns from `lg`.
 
-      {plainError && (
-        <div className="mt-3 rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
-          <p className="text-[11.5px] text-[#ff9a76]">{t(plainError)}</p>
-          {error && error.messages.length > 0 && (
-            <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
-              {error.messages.map((code) => (
-                <li key={code}>{t(explainBoardCode(code, n))}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        The phone keeps the order it had: canvas first, then the panels under
+        it. There is no width to give away at 390px, and a save button one
+        scroll below the board is the right trade when the board itself is only
+        as wide as a hand.
 
-      {readOnly && (
-        <Card className="mt-3">
-          <CardHead
-            icon="Eye"
-            kicker={COPY.readOnlyKicker}
-            title={t(COPY.readOnlyTitle)}
-            subtitle={t(COPY.readOnlySub)}
-            gradient={['#155e75', '#22d3ee']}
-          />
-          <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.readOnlyBody)}</p>
-        </Card>
-      )}
+        From `lg` the canvas becomes the page — full height, the panels beside
+        it in a column that scrolls on its own. Deciding whether a graph is
+        worth saving while the graph is off screen is the thing this fixes, and
+        the panel folds away when the board wants the whole window.
+      */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-4 lg:overflow-hidden lg:px-8 lg:pb-8 lg:pt-8">
+        {editorBanner}
 
-      {viewing && (
-        <div className="mt-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2.5">
-          <p className="text-[11.5px] text-[#c0aeff]">
-            {t(COPY.viewingBanner).replace('{v}', num(viewing.version))}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={closeVersion}
-              className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/70 transition hover:border-accent/50 hover:text-white"
-            >
-              {t(COPY.closeView)}
-            </button>
-            {!readOnly && (
-              <button
-                type="button"
-                disabled={restoring !== null}
-                onClick={() => void restore(viewing.version)}
-                className="rounded-lg border border-accent/50 px-2.5 py-1 text-[10.5px] text-white transition hover:brightness-110 disabled:opacity-40"
-              >
-                {t(restoring !== null ? COPY.restoringNow : COPY.restoreThis)}
-              </button>
+        {plainError && (
+          <div className="mt-3 rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
+            <p className="text-[11.5px] text-[#ff9a76]">{t(plainError)}</p>
+            {error && error.messages.length > 0 && (
+              <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
+                {error.messages.map((code) => (
+                  <li key={code}>{t(explainBoardCode(code, n))}</li>
+                ))}
+              </ul>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* The canvas keeps its own fixed height so the panels below stay reachable. */}
-      <div className="mt-3 h-[58vh] min-h-[320px] overflow-hidden rounded-2xl border border-hairline bg-panel/40">
-        <EditableCanvas
-          graph={shown}
-          readOnly={readOnly || viewing !== null}
-          onChange={(next: BoardGraph) => setGraph(next)}
-          metrics={live.metrics}
-          onOpenRoute={(to: string) => {
-            // A node that opens a page is still a way off this one, so it asks.
-            if (dirtyRef.current) setLeaving(() => () => navigate(to))
-            else navigate(to)
-          }}
-        />
-      </div>
-
-      {!readOnly && (
-        <Card className="mt-3">
-          <CardHead
-            icon="Send"
-            kicker={COPY.saveKicker}
-            title={t(COPY.saveTitle)}
-            subtitle={t(COPY.saveSub)}
-            gradient={['#065f46', '#34d399']}
-          />
-          <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.saveBody)}</p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <Chip tone={dirty ? 'hot' : 'warm'}>{t(dirty ? COPY.unsaved : COPY.saved)}</Chip>
-            {board && (
-              <Chip tone="accent">
-                {t(COPY.version)} {num(board.version)}
-              </Chip>
-            )}
-          </div>
-
-          <div className="mt-2">
-            <Row
-              label={t(COPY.lastSaved)}
-              value={
-                <span className="tabular-nums">{boardStamp(lastSavedAt, n) || t(COPY.neverSaved)}</span>
-              }
-            />
-            <Row
-              label={t(COPY.onBoard)}
-              value={t(COPY.countsLine)
-                .replace('{nodes}', num(graph.nodes.length))
-                .replace('{edges}', num(graph.edges.length))}
-            />
-          </div>
-
-          <label htmlFor="board-note" className="mt-3 block text-[11.5px] text-white/70">
-            {t(COPY.noteLabel)}
-          </label>
-          <input
-            id="board-note"
-            value={note}
-            placeholder={t(COPY.notePlaceholder)}
-            onChange={(event) => setNote(event.target.value)}
-            className={`${SHELL} mt-1.5 text-start`}
-          />
-
-          <div className="mt-3">
-            <PrimaryButton onClick={() => void saveNow()} disabled={!dirty || saving || viewing !== null}>
-              {t(saving ? COPY.savingNow : COPY.saveNow)}
-            </PrimaryButton>
-          </div>
-
-          {dirty && (
-            <button
-              type="button"
-              onClick={revert}
-              className="mt-2 w-full rounded-xl border border-hairline py-2 text-[10.5px] text-white/45 transition hover:border-[#ff6b3d]/50 hover:text-[#ff9a76]"
-            >
-              {t(COPY.discard)}
-            </button>
-          )}
-        </Card>
-      )}
-
-      {!readOnly && board && (
-        <Card className="mt-3">
-          <CardHead
-            icon="Shield"
-            kicker={COPY.visibilityKicker}
-            title={t(COPY.visibilityTitle)}
-            subtitle={t(COPY.visibilitySub)}
-            gradient={['#155e75', '#22d3ee']}
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Chip tone={isPublic ? 'warm' : 'neutral'}>{t(isPublic ? COPY.public : COPY.private)}</Chip>
-            <button
-              type="button"
-              onClick={() => void setVisibility(isPublic ? 'private' : 'public')}
-              className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
-            >
-              {t(isPublic ? COPY.makePrivate : COPY.makePublic)}
-            </button>
-          </div>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-white/40">
-            {t(isPublic ? COPY.publicNote : COPY.privateNote)}
-          </p>
-          {isPublic && (
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                readOnly
-                dir="ltr"
-                value={publicBoardUrl(slug)}
-                onFocus={(event) => event.currentTarget.select()}
-                aria-label={t(COPY.copyLink)}
-                className="min-w-0 flex-1 rounded-lg border border-hairline bg-black/40 px-2.5 py-1.5 text-[10.5px] text-white/70 outline-none"
-              />
+        {viewing && (
+          <div className="mt-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2.5">
+            <p className="text-[11.5px] text-[#c0aeff]">
+              {t(COPY.viewingBanner).replace('{v}', num(viewing.version))}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => void copyLink()}
-                className="shrink-0 rounded-lg border border-hairline px-2.5 py-1.5 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
+                onClick={closeVersion}
+                className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/70 transition hover:border-accent/50 hover:text-white"
               >
-                {t(copied ? COPY.copied : COPY.copyLink)}
+                {t(COPY.closeView)}
               </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  disabled={restoring !== null}
+                  onClick={() => void restore(viewing.version)}
+                  className="rounded-lg border border-accent/50 px-2.5 py-1 text-[10.5px] text-white transition hover:brightness-110 disabled:opacity-40"
+                >
+                  {t(restoring !== null ? COPY.restoringNow : COPY.restoreThis)}
+                </button>
+              )}
             </div>
-          )}
-        </Card>
-      )}
+          </div>
+        )}
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Clock"
-          kicker={COPY.historyKicker}
-          title={t(COPY.historyTitle)}
-          subtitle={t(COPY.historySub)}
-          gradient={['#3730a3', '#6366f1']}
-        />
-        <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.historyBody)}</p>
+        <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3 lg:mt-4 lg:flex-row lg:gap-4">
+          {/* A phone gives the canvas a fixed slice of the screen and scrolls
+              past it; `lg` hands it every pixel the panels do not want. */}
+          <div className="h-[58vh] max-h-[560px] min-h-[320px] shrink-0 overflow-hidden rounded-2xl border border-hairline bg-panel/40 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1 lg:shrink">
+            <EditableCanvas
+              graph={shown}
+              readOnly={readOnly || viewing !== null}
+              onChange={(next: BoardGraph) => setGraph(next)}
+              metrics={live.metrics}
+              onOpenRoute={(to: string) => {
+                // A node that opens a page is still a way off this one, so it asks.
+                if (dirtyRef.current) setLeaving(() => () => navigate(to))
+                else navigate(to)
+              }}
+            />
+          </div>
 
-        <div className="mt-3 space-y-2">
-          {versionsLoading ? (
-            <p className="py-3 text-center text-[11.5px] text-white/30">{t(COPY.historyLoading)}</p>
-          ) : versions.length === 0 ? (
-            <p className="py-3 text-center text-[11.5px] text-white/30">{t(COPY.historyEmpty)}</p>
-          ) : (
-            [...versions]
-              .sort((a, b) => b.version - a.version)
-              .map((entry) => (
-                <article key={entry.version} className="rounded-xl border border-hairline bg-white/[0.02] p-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Chip tone={entry.version === board?.version ? 'warm' : 'neutral'}>
-                      {t(COPY.version)} {num(entry.version)}
+          <aside
+            className={`flex flex-col gap-3 ${
+              panelOpen ? 'lg:w-[352px] lg:shrink-0 lg:overflow-y-auto xl:w-[400px]' : 'lg:hidden'
+            }`}
+          >
+            {readOnly && (
+              <Card>
+                <CardHead
+                  icon="Eye"
+                  kicker={COPY.readOnlyKicker}
+                  title={t(COPY.readOnlyTitle)}
+                  subtitle={t(COPY.readOnlySub)}
+                  gradient={['#155e75', '#22d3ee']}
+                />
+                <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.readOnlyBody)}</p>
+              </Card>
+            )}
+
+            {!readOnly && (
+              <Card>
+                <CardHead
+                  icon="Send"
+                  kicker={COPY.saveKicker}
+                  title={t(COPY.saveTitle)}
+                  subtitle={t(COPY.saveSub)}
+                  gradient={['#065f46', '#34d399']}
+                />
+                <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.saveBody)}</p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <Chip tone={dirty ? 'hot' : 'warm'}>{t(dirty ? COPY.unsaved : COPY.saved)}</Chip>
+                  {board && (
+                    <Chip tone="accent">
+                      {t(COPY.version)} {num(board.version)}
                     </Chip>
-                    {entry.nodes !== null && (
-                      <Chip>
-                        {num(entry.nodes)} · {entry.edges === null ? '—' : num(entry.edges)}
-                      </Chip>
-                    )}
-                    <span className="text-[10.5px] tabular-nums text-white/35">{boardStamp(entry.at, n)}</span>
-                  </div>
+                  )}
+                </div>
 
-                  {/* The note is the owner's own writing, so it renders as typed. */}
-                  {entry.note && <p className="mt-1.5 text-[11.5px] leading-relaxed text-white/70">{entry.note}</p>}
+                <div className="mt-2">
+                  <Row
+                    label={t(COPY.lastSaved)}
+                    value={
+                      <span className="tabular-nums">{boardStamp(lastSavedAt, n) || t(COPY.neverSaved)}</span>
+                    }
+                  />
+                  <Row
+                    label={t(COPY.onBoard)}
+                    value={t(COPY.countsLine)
+                      .replace('{nodes}', num(graph.nodes.length))
+                      .replace('{edges}', num(graph.edges.length))}
+                  />
+                </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label htmlFor="board-note" className="mt-3 block text-[11.5px] text-white/70">
+                  {t(COPY.noteLabel)}
+                </label>
+                <input
+                  id="board-note"
+                  value={note}
+                  placeholder={t(COPY.notePlaceholder)}
+                  onChange={(event) => setNote(event.target.value)}
+                  className={`${SHELL} mt-1.5 text-start`}
+                />
+
+                <div className="mt-3">
+                  <PrimaryButton onClick={() => void saveNow()} disabled={!dirty || saving || viewing !== null}>
+                    {t(saving ? COPY.savingNow : COPY.saveNow)}
+                  </PrimaryButton>
+                </div>
+
+                {dirty && (
+                  <button
+                    type="button"
+                    onClick={revert}
+                    className="mt-2 w-full rounded-xl border border-hairline py-2 text-[10.5px] text-white/45 transition hover:border-[#ff6b3d]/50 hover:text-[#ff9a76]"
+                  >
+                    {t(COPY.discard)}
+                  </button>
+                )}
+              </Card>
+            )}
+
+            {!readOnly && board && (
+              <Card>
+                <CardHead
+                  icon="Shield"
+                  kicker={COPY.visibilityKicker}
+                  title={t(COPY.visibilityTitle)}
+                  subtitle={t(COPY.visibilitySub)}
+                  gradient={['#155e75', '#22d3ee']}
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Chip tone={isPublic ? 'warm' : 'neutral'}>{t(isPublic ? COPY.public : COPY.private)}</Chip>
+                  <button
+                    type="button"
+                    onClick={() => void setVisibility(isPublic ? 'private' : 'public')}
+                    className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
+                  >
+                    {t(isPublic ? COPY.makePrivate : COPY.makePublic)}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10.5px] leading-relaxed text-white/40">
+                  {t(isPublic ? COPY.publicNote : COPY.privateNote)}
+                </p>
+                {isPublic && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      readOnly
+                      dir="ltr"
+                      value={publicBoardUrl(slug)}
+                      onFocus={(event) => event.currentTarget.select()}
+                      aria-label={t(COPY.copyLink)}
+                      className="min-w-0 flex-1 rounded-lg border border-hairline bg-black/40 px-2.5 py-1.5 text-[10.5px] text-white/70 outline-none"
+                    />
                     <button
                       type="button"
-                      onClick={() => void viewVersion(entry.version)}
-                      className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
+                      onClick={() => void copyLink()}
+                      className="shrink-0 rounded-lg border border-hairline px-2.5 py-1.5 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
                     >
-                      {t(COPY.view)}
+                      {t(copied ? COPY.copied : COPY.copyLink)}
                     </button>
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        disabled={restoring !== null}
-                        onClick={() => void restore(entry.version)}
-                        className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
-                      >
-                        {t(restoring === entry.version ? COPY.restoringNow : COPY.restore)}
-                      </button>
-                    )}
                   </div>
-                </article>
-              ))
-          )}
+                )}
+              </Card>
+            )}
+
+            <Card>
+              <CardHead
+                icon="Clock"
+                kicker={COPY.historyKicker}
+                title={t(COPY.historyTitle)}
+                subtitle={t(COPY.historySub)}
+                gradient={['#3730a3', '#6366f1']}
+              />
+              <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.historyBody)}</p>
+
+              <div className="mt-3 space-y-2">
+                {versionsLoading ? (
+                  <p className="py-3 text-center text-[11.5px] text-white/30">{t(COPY.historyLoading)}</p>
+                ) : versions.length === 0 ? (
+                  <p className="py-3 text-center text-[11.5px] text-white/30">{t(COPY.historyEmpty)}</p>
+                ) : (
+                  [...versions]
+                    .sort((a, b) => b.version - a.version)
+                    .map((entry) => (
+                      <article key={entry.version} className="rounded-xl border border-hairline bg-white/[0.02] p-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Chip tone={entry.version === board?.version ? 'warm' : 'neutral'}>
+                            {t(COPY.version)} {num(entry.version)}
+                          </Chip>
+                          {entry.nodes !== null && (
+                            <Chip>
+                              {num(entry.nodes)} · {entry.edges === null ? '—' : num(entry.edges)}
+                            </Chip>
+                          )}
+                          <span className="text-[10.5px] tabular-nums text-white/35">{boardStamp(entry.at, n)}</span>
+                        </div>
+
+                        {/* The note is the owner's own writing, so it renders as typed. */}
+                        {entry.note && <p className="mt-1.5 text-[11.5px] leading-relaxed text-white/70">{entry.note}</p>}
+
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void viewVersion(entry.version)}
+                            className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
+                          >
+                            {t(COPY.view)}
+                          </button>
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              disabled={restoring !== null}
+                              onClick={() => void restore(entry.version)}
+                              className="rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
+                            >
+                              {t(restoring === entry.version ? COPY.restoringNow : COPY.restore)}
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    ))
+                )}
+              </div>
+            </Card>
+          </aside>
         </div>
-      </Card>
+      </div>
 
       {leaving && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-5" role="dialog" aria-modal="true">
