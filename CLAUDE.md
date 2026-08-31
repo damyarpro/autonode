@@ -48,7 +48,9 @@ src/
               nodeKinds.ts — every list, label and node explanation. The board
               palette is derived from tools.ts, never restated.
   components/board/  the editable canvas: palette, context menu, undo/redo.
-  components/ AppShell · TabBar · PageBanner · Card · Icon — shared chrome.
+  components/ AppShell · TabBar · SideRail · PageBanner · Card · Icon — shared
+              chrome. The tab list is in data/nav.ts: the bar and the rail are
+              two renderings of one list.
   api/        fetch client and hooks. No component calls fetch directly.
   i18n/       t()/n() plus errors.ts, which turns the server's field:code
               answers into sentences.
@@ -79,11 +81,18 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
    Render through `useI18n().t()`. A string that only exists in one language is
    a bug. Numbers go through `n()` / `num()` so Persian digits stay consistent.
 
-3. **RTL is the default, not an afterthought.** Use logical properties —
+3. **Responsive, and RTL is the default — not afterthoughts.** `lg` (1024px)
+   is the one phone/desktop switch: below it the bottom tab bar, above it the
+   side rail, with `--tabbar` collapsing to zero so a full-height page really
+   is. Write the phone layout as the base and add `md:`/`lg:` on top; a page
+   that got worse at 390px is a failed change however good it looks at 1512px.
+   Nothing may scroll horizontally down to 320px. Use logical properties —
    `ms-*`/`me-*`, `ps-*`/`pe-*`, `start-*`/`end-*`, `text-start`/`text-end`.
-   Never `ml-*`, `left-*` or `text-left` for layout that should mirror. The one
-   exception is the React Flow canvas, which stays `dir="ltr"` and mirrors its
-   node coordinates instead, because it positions by CSS transform.
+   Never `ml-*`, `left-*` or `text-left` for layout that should mirror — a
+   two-column desktop layout that hard-codes sides is mirrored wrong in
+   Persian, which is this app's default language. The one exception is the
+   React Flow canvas, which stays `dir="ltr"` and mirrors its node coordinates
+   instead, because it positions by CSS transform.
 
 4. **External services go behind an adapter.** Add the interface to
    `server/adapters/types.ts`, a real implementation, and a fallback that keeps
