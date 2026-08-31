@@ -436,7 +436,7 @@ export default function Studio() {
         ) : media.jobs.length === 0 ? (
           <p className="mt-3 text-[11.5px] text-white/30">{t(online ? COPY.empty : COPY.offline)}</p>
         ) : (
-          <div className="mt-3 grid grid-cols-1 gap-2 xl:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 items-start gap-2 xl:grid-cols-2">
             {media.jobs.map((job) => (
               <JobRow
                 key={job.id}
