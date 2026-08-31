@@ -18,7 +18,7 @@ import { useI18n } from '../i18n/I18nProvider'
 import type { Bi } from '../data/types'
 
 const COPY = {
-  title: { fa: 'بومهای من', en: 'My boards' },
+  title: { fa: 'بوم‌های من', en: 'My boards' },
   subtitle: { fa: 'نقشه‌هایی که خودت می‌سازی', en: 'The maps you build yourself' },
   backToBoard: { fa: 'بازگشت به بوم فروش', en: 'Back to the sales board' },
 
@@ -40,7 +40,7 @@ const COPY = {
   },
 
   // list
-  listKicker: { fa: 'بومها', en: 'Boards' },
+  listKicker: { fa: 'بوم‌ها', en: 'Boards' },
   listTitle: { fa: 'هرچه تا حالا ساخته‌ای', en: 'Everything you have built' },
   listSub: { fa: 'تازه‌ترین تغییر اول', en: 'Most recently changed first' },
   loading: { fa: 'در حال بارگذاری…', en: 'Loading…' },

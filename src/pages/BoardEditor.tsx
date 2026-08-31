@@ -15,7 +15,7 @@ import type { Bi } from '../data/types'
 
 const COPY = {
   subtitle: { fa: 'بوم خودت — بساز، ذخیره کن، برگرد', en: 'Your own board — build it, save it, go back' },
-  backToList: { fa: 'بازگشت به فهرست بومها', en: 'Back to the boards list' },
+  backToList: { fa: 'بازگشت به فهرست بوم‌ها', en: 'Back to the boards list' },
   loading: { fa: 'در حال بارگذاری…', en: 'Loading…' },
 
   // not found
@@ -26,7 +26,7 @@ const COPY = {
     fa: 'این نشانی به بومی نمی‌رسد. یا حذف شده، یا خصوصی است و برای دیدنش باید وارد شوی.',
     en: 'This address reaches no board. It was deleted, or it is private and needs a session to read.',
   },
-  missingCta: { fa: 'رفتن به فهرست بومها', en: 'Go to the boards list' },
+  missingCta: { fa: 'رفتن به فهرست بوم‌ها', en: 'Go to the boards list' },
 
   // read-only
   readOnlyKicker: { fa: 'فقط خواندنی', en: 'Read-only' },
