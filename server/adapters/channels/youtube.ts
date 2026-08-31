@@ -24,7 +24,7 @@
  * `env.ts`, so this adapter is self-contained and a test can toggle them.
  */
 import type { Lead } from '../../types.ts'
-import { isAudience, type ChannelAdapter, type ChannelSendResult } from '../types.ts'
+import { isAudience, type ChannelAdapter, type ChannelSendResult, type SendMeta } from '../types.ts'
 // Its home is `adapters/types.ts`, which every adapter shares; it lives beside
 // the first channel that needed it until the interface itself carries a reason.
 
@@ -114,7 +114,7 @@ export const youtubeChannel: ChannelAdapter = {
   channel: 'youtube',
   live: true,
 
-  async send(lead: Lead, body: string): Promise<ChannelSendResult> {
+  async send(lead: Lead, body: string, meta?: SendMeta): Promise<ChannelSendResult> {
     // A channel has an audience, not an inbox.
     if (!isAudience(lead)) return { status: 'failed', reason: 'youtube:no_direct_message' }
 
@@ -149,7 +149,7 @@ export const youtubeChannel: ChannelAdapter = {
         },
         signal: AbortSignal.timeout(timeoutMs()),
         body: JSON.stringify({
-          snippet: { title: titleFrom(body), description: body.slice(0, 5000), categoryId: categoryId() },
+          snippet: { title: titleFrom(meta?.title || body), description: body.slice(0, 5000), categoryId: categoryId() },
           status: { privacyStatus: privacyStatus(), selfDeclaredMadeForKids: false },
         }),
       })

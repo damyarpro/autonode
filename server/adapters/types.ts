@@ -18,11 +18,21 @@ export type ChannelSendResult = {
   reason?: string
 }
 
+/**
+ * What a published piece carries beyond its text. A nurture message has none of
+ * this — it is one body addressed to one person — so every field is optional
+ * and an adapter that does not need it ignores it.
+ */
+export type SendMeta = {
+  /** The piece's own title, rather than a guess made from its first line. */
+  title?: string | null
+}
+
 export interface ChannelAdapter {
   readonly channel: Channel
   /** False when the adapter only records the message instead of delivering it. */
   readonly live: boolean
-  send(lead: Lead, body: string): Promise<ChannelSendResult>
+  send(lead: Lead, body: string, meta?: SendMeta): Promise<ChannelSendResult>
 }
 
 /**

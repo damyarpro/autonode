@@ -159,7 +159,7 @@ export async function publishDue(now = new Date(), limit = 25): Promise<number> 
         continue
       }
 
-      const result = await adapter.send(audience(piece, target), piece.body)
+      const result = await adapter.send(audience(piece, target), piece.body, { title: piece.title })
 
       if (result.status === 'failed') {
         // The adapter's own reason when it has one: "Instagram cannot publish

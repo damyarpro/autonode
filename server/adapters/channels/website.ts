@@ -22,7 +22,7 @@
  */
 import { createHmac } from 'node:crypto'
 import type { Lead } from '../../types.ts'
-import { isAudience, type ChannelAdapter, type ChannelSendResult } from '../types.ts'
+import { isAudience, type ChannelAdapter, type ChannelSendResult, type SendMeta } from '../types.ts'
 // Its home is `adapters/types.ts`, which every adapter shares; it lives beside
 // the first channel that needed it until the interface itself carries a reason.
 
@@ -46,7 +46,7 @@ export const websiteChannel: ChannelAdapter = {
   channel: 'website',
   live: true,
 
-  async send(lead: Lead, body: string): Promise<ChannelSendResult> {
+  async send(lead: Lead, body: string, meta?: SendMeta): Promise<ChannelSendResult> {
     // The receiver publishes what it is handed, so a message written for one
     // lead must never reach it: that would put private words on a public page.
     if (!isAudience(lead)) return { status: 'failed', reason: 'website:no_direct_message' }
@@ -57,6 +57,8 @@ export const websiteChannel: ChannelAdapter = {
       channel: 'website',
       target: lead.external_id ?? '',
       locale: lead.locale,
+      // A receiver publishing an article needs the heading, not only the text.
+      title: meta?.title ?? '',
       body,
       sentAt: new Date().toISOString(),
     }
