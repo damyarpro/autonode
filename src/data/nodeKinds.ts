@@ -1,4 +1,5 @@
 import type { Bi, IconKey } from './types'
+import { aiTools, externalTools, type ToolCategory } from './tools'
 
 /**
  * Everything the right-click palette can put on a board. Rule 1: this is the
@@ -6,7 +7,18 @@ import type { Bi, IconKey } from './types'
  * the sales board all read it, and adding a kind means editing this file alone.
  */
 
-export const NODE_CATEGORIES = ['content', 'channel', 'capture', 'routing', 'sales', 'money', 'retention', 'plain'] as const
+export const NODE_CATEGORIES = [
+  'content',
+  'channel',
+  'capture',
+  'routing',
+  'sales',
+  'money',
+  'retention',
+  'plain',
+  'ai-tool',
+  'external',
+] as const
 export type NodeCategory = (typeof NODE_CATEGORIES)[number]
 
 export const CATEGORY_LABEL: Record<NodeCategory, Bi> = {
@@ -18,6 +30,20 @@ export const CATEGORY_LABEL: Record<NodeCategory, Bi> = {
   money: { fa: 'پول', en: 'Money' },
   retention: { fa: 'نگهداشت', en: 'Retention' },
   plain: { fa: 'عمومی', en: 'General' },
+  'ai-tool': { fa: 'ابزارهای AI این اپ', en: 'This app’s AI tools' },
+  external: { fa: 'ابزارهای خارجی', en: 'External tools' },
+}
+
+/**
+ * A tool's own tile, when the kind came from the tools directory. The board
+ * draws it the way the tools page does, so a step that uses Figma looks like
+ * Figma rather than like a generic box.
+ */
+export type NodeBrand = {
+  /** A lucide name, resolved by src/components/Icon.tsx. */
+  iconName: string
+  color?: string
+  gradient?: [string, string]
 }
 
 export type NodeKind = {
@@ -35,9 +61,14 @@ export type NodeKind = {
    * A kind with none shows no number rather than an invented one (rule 5).
    */
   metric?: string
+  brand?: NodeBrand
+  /** An in-app route this node opens, for the AI tools. */
+  to?: string
+  /** The service's own site, for an external tool. */
+  url?: string
 }
 
-export const nodeKinds: NodeKind[] = [
+const funnelKinds: NodeKind[] = [
   // ── content ────────────────────────────────────────────────────────────
   {
     id: 'elevenlabs',
@@ -285,6 +316,50 @@ export const nodeKinds: NodeKind[] = [
     defaults: { kicker: { fa: 'یادداشت', en: 'NOTE' }, title: { fa: 'یادداشت', en: 'Note' } },
   },
 ]
+
+/**
+ * The tools tab and the board palette are the same catalogue seen twice, so the
+ * tool kinds are derived from `tools.ts` rather than restated here — rule 1. A
+ * tool added there shows up in the right-click menu with no edit to this file.
+ */
+
+/** A board glyph that stands in behind the tool's own tile. */
+const EXTERNAL_GLYPH: Record<ToolCategory, IconKey> = {
+  design: 'factory',
+  management: 'memory',
+  analytics: 'growth',
+  marketing: 'website',
+  payment: 'card',
+  automation: 'router',
+}
+
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
+const aiToolKinds: NodeKind[] = aiTools.map((tool) => ({
+  id: `tool:${tool.id}`,
+  category: 'ai-tool' as const,
+  icon: 'memory' as IconKey,
+  label: tool.title,
+  hint: tool.subtitle,
+  defaults: { kicker: { fa: 'ابزار AI', en: 'AI TOOL' }, title: tool.title, meta: tool.subtitle },
+  brand: { iconName: tool.icon, gradient: tool.gradient },
+  ...(tool.to ? { to: tool.to } : {}),
+}))
+
+const externalToolKinds: NodeKind[] = externalTools.map((tool) => ({
+  id: `ext:${slug(tool.name)}`,
+  category: 'external' as const,
+  icon: EXTERNAL_GLYPH[tool.category],
+  // A service's name is its name in both languages; only the description differs.
+  label: { fa: tool.name, en: tool.name },
+  hint: tool.description,
+  defaults: { kicker: { fa: tool.name, en: tool.name }, title: tool.description },
+  brand: { iconName: tool.icon, color: tool.color },
+  url: tool.url,
+}))
+
+/** The funnel's own kinds first, then the catalogue. */
+export const nodeKinds: NodeKind[] = [...funnelKinds, ...aiToolKinds, ...externalToolKinds]
 
 export const nodeKindById = (id: string): NodeKind | undefined => nodeKinds.find((kind) => kind.id === id)
 
