@@ -179,88 +179,98 @@ export default function Boards() {
         </div>
       )}
 
-      {canEdit && (
-        <Card className="mt-3">
+      {/*
+        One column on a phone. From `lg` the form that makes a board and the
+        list of boards stop queueing behind each other: the form is a fixed,
+        sticky column at the inline start — it never needs the whole width —
+        and the list spends what is left on two boards per row.
+      */}
+      <div className="mt-3 lg:grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start lg:gap-4">
+        <div className="space-y-3 lg:sticky lg:top-8">
+        {canEdit && (
+          <Card>
+            <CardHead
+              icon="Sparkles"
+              kicker={COPY.createKicker}
+              title={t(COPY.createTitle)}
+              subtitle={t(COPY.createSub)}
+              gradient={['#4c1d95', '#8b5cf6']}
+            />
+            <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={COPY.nameFa} htmlFor="board-name-fa">
+                  <input
+                    id="board-name-fa"
+                    dir="rtl"
+                    value={draftFa}
+                    onChange={(event) => {
+                      clearError()
+                      setDraftFa(event.target.value)
+                    }}
+                    className={`${SHELL} mt-1.5 text-start`}
+                  />
+                </Field>
+                <Field label={COPY.nameEn} htmlFor="board-name-en">
+                  <input
+                    id="board-name-en"
+                    dir="ltr"
+                    value={draftEn}
+                    onChange={(event) => {
+                      clearError()
+                      setDraftEn(event.target.value)
+                    }}
+                    className={`${SHELL} mt-1.5 text-start`}
+                  />
+                </Field>
+              </div>
+              <p className="text-[10.5px] leading-relaxed text-white/30">{t(COPY.nameHint)}</p>
+              <PrimaryButton type="submit" disabled={busy || !online}>
+                {t(busy ? COPY.creatingNow : COPY.createNow)}
+              </PrimaryButton>
+            </form>
+          </Card>
+        )}
+
+        {!canEdit && (
+          <div className="rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
+            <p className="text-[11.5px] text-white/45">{t(COPY.needsSession)}</p>
+          </div>
+        )}
+        </div>
+
+        <Card className="mt-3 lg:mt-0">
           <CardHead
-            icon="Sparkles"
-            kicker={COPY.createKicker}
-            title={t(COPY.createTitle)}
-            subtitle={t(COPY.createSub)}
-            gradient={['#4c1d95', '#8b5cf6']}
+            icon="Layers"
+            kicker={COPY.listKicker}
+            title={t(COPY.listTitle)}
+            subtitle={t(COPY.listSub)}
+            gradient={['#3730a3', '#6366f1']}
           />
-          <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={COPY.nameFa} htmlFor="board-name-fa">
-                <input
-                  id="board-name-fa"
-                  dir="rtl"
-                  value={draftFa}
-                  onChange={(event) => {
-                    clearError()
-                    setDraftFa(event.target.value)
-                  }}
-                  className={`${SHELL} mt-1.5 text-start`}
+
+          <div className="mt-3 grid gap-2 min-[1400px]:grid-cols-2">
+            {loading ? (
+              <p className="py-4 text-center text-[11.5px] text-white/30">{t(COPY.loading)}</p>
+            ) : boards.length === 0 ? (
+              <p className="py-4 text-center text-[11.5px] text-white/30">
+                {t(!online ? COPY.offline : canEdit ? COPY.empty : COPY.emptyPublic)}
+              </p>
+            ) : (
+              boards.map((board) => (
+                <BoardRow
+                  key={board.slug}
+                  board={board}
+                  locale={locale}
+                  canEdit={canEdit}
+                  busy={busy}
+                  onRename={(name) => rename(board.slug, name)}
+                  onVisibility={(visibility) => setVisibility(board.slug, visibility)}
+                  onRemove={() => remove(board.slug)}
                 />
-              </Field>
-              <Field label={COPY.nameEn} htmlFor="board-name-en">
-                <input
-                  id="board-name-en"
-                  dir="ltr"
-                  value={draftEn}
-                  onChange={(event) => {
-                    clearError()
-                    setDraftEn(event.target.value)
-                  }}
-                  className={`${SHELL} mt-1.5 text-start`}
-                />
-              </Field>
-            </div>
-            <p className="text-[10.5px] leading-relaxed text-white/30">{t(COPY.nameHint)}</p>
-            <PrimaryButton type="submit" disabled={busy || !online}>
-              {t(busy ? COPY.creatingNow : COPY.createNow)}
-            </PrimaryButton>
-          </form>
+              ))
+            )}
+          </div>
         </Card>
-      )}
-
-      {!canEdit && (
-        <div className="mt-3 rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
-          <p className="text-[11.5px] text-white/45">{t(COPY.needsSession)}</p>
-        </div>
-      )}
-
-      <Card className="mt-3">
-        <CardHead
-          icon="Layers"
-          kicker={COPY.listKicker}
-          title={t(COPY.listTitle)}
-          subtitle={t(COPY.listSub)}
-          gradient={['#3730a3', '#6366f1']}
-        />
-
-        <div className="mt-3 space-y-2">
-          {loading ? (
-            <p className="py-4 text-center text-[11.5px] text-white/30">{t(COPY.loading)}</p>
-          ) : boards.length === 0 ? (
-            <p className="py-4 text-center text-[11.5px] text-white/30">
-              {t(!online ? COPY.offline : canEdit ? COPY.empty : COPY.emptyPublic)}
-            </p>
-          ) : (
-            boards.map((board) => (
-              <BoardRow
-                key={board.slug}
-                board={board}
-                locale={locale}
-                canEdit={canEdit}
-                busy={busy}
-                onRename={(name) => rename(board.slug, name)}
-                onVisibility={(visibility) => setVisibility(board.slug, visibility)}
-                onRemove={() => remove(board.slug)}
-              />
-            ))
-          )}
-        </div>
-      </Card>
+      </div>
     </AppShell>
   )
 }

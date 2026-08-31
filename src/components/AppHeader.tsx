@@ -12,21 +12,28 @@ const NAV = [
 
 const BACK = { en: 'Tools', fa: 'ابزارها' }
 
-/** Shared chrome: title, live indicator, navigation and the locale switch. */
+/**
+ * Shared chrome: title, live indicator, navigation and the locale switch.
+ *
+ * Above `lg` the side rail already carries these three destinations and the
+ * locale switch, so the header drops both rather than showing them twice, and
+ * becomes a single title line. On a phone there is no rail, so the links get a
+ * row of their own under the title instead of wrapping through it.
+ */
 export default function AppHeader({ connected }: { connected?: boolean }) {
   const { t } = useI18n()
 
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-hairline bg-panel/70 px-5 py-3">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-hairline bg-panel/70 px-4 py-2.5 lg:px-5 lg:py-3">
       <Link
         to="/tools"
         aria-label={t(BACK)}
         title={t(BACK)}
-        className="grid h-7 w-7 place-items-center rounded-md border border-hairline text-accent transition hover:border-accent/50"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-hairline text-accent transition hover:border-accent/50"
       >
         <Icon name="ChevronLeft" size={15} className="rtl:rotate-180" />
       </Link>
-      <h1 className="text-[15px] font-semibold tracking-tight">{t(heading.title)}</h1>
+      <h1 className="text-[14px] font-semibold tracking-tight lg:text-[15px]">{t(heading.title)}</h1>
 
       {connected !== undefined && (
         <span
@@ -39,13 +46,17 @@ export default function AppHeader({ connected }: { connected?: boolean }) {
         </span>
       )}
 
-      <nav className="ms-4 flex items-center gap-1 text-[12px]">
+      <div className="ms-auto lg:hidden">
+        <LocaleSwitch />
+      </div>
+
+      <nav className="order-last flex w-full items-center gap-1 text-[12px] lg:hidden">
         {NAV.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `rounded-lg px-2.5 py-1 transition ${
+              `rounded-lg px-2.5 py-1.5 transition ${
                 isActive ? 'bg-white/[0.08] text-white' : 'text-white/45 hover:text-white/80'
               }`
             }
@@ -54,10 +65,6 @@ export default function AppHeader({ connected }: { connected?: boolean }) {
           </NavLink>
         ))}
       </nav>
-
-      <div className="ms-auto">
-        <LocaleSwitch />
-      </div>
     </header>
   )
 }

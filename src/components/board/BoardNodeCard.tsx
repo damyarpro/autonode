@@ -58,8 +58,23 @@ export type BoardCardNode = Node<BoardCardData, 'boardCard'>
 export type BoardGroupNode = Node<BoardGroupData, 'boardGroup'>
 export type BoardFlowNode = BoardCardNode | BoardGroupNode
 
-const handleClass =
-  'opacity-0 transition-opacity duration-150 group-hover:opacity-100 !h-2.5 !w-2.5 !rounded-full !border !border-white/40 !bg-accent'
+/**
+ * The four connection points. They hide until the card is hovered — but a
+ * finger never hovers, so a selected card shows them too: on a touch screen
+ * tapping a node is the only way to be told where a wire can start. They are
+ * also wider where the pointer is coarse, because 10px is under half of what a
+ * fingertip can reliably hit.
+ */
+const handleClass = [
+  'opacity-0 transition-opacity duration-150 group-hover:opacity-100',
+  '!h-2.5 !w-2.5 !rounded-full !border !border-white/40 !bg-accent',
+  '[@media(pointer:coarse)]:!h-4 [@media(pointer:coarse)]:!w-4',
+  // React Flow marks only its pane `touch-action: none`. A wire dragged off a
+  // handle mostly travels up or down, and without this the nearest scroller
+  // claims that as a page scroll and the browser cancels the pointer — so on a
+  // phone the connection simply never happened.
+  'touch-none',
+].join(' ')
 
 /**
  * The rename form. A bilingual name is not a preference here — a title with one
@@ -149,6 +164,8 @@ export default function BoardNodeCard({ data, selected }: NodeProps<BoardCardNod
   // A node with no metric key, or a page with no value for it, shows no
   // number at all rather than a plausible-looking one (rule 5).
   const value = node.metric ? data.metric : undefined
+  // Selecting is the touch equivalent of hovering, so it reveals the handles.
+  const handles = selected && !data.readOnly ? `${handleClass} !opacity-100` : handleClass
 
   return (
     <div
@@ -160,10 +177,10 @@ export default function BoardNodeCard({ data, selected }: NodeProps<BoardCardNod
       ].join(' ')}
       style={{ width: node.width ?? NODE_WIDTH }}
     >
-      <Handle id="target-l" type="target" position={Position.Left} className={handleClass} isConnectable={!data.readOnly} />
-      <Handle id="target-r" type="target" position={Position.Right} className={handleClass} isConnectable={!data.readOnly} />
-      <Handle id="source-l" type="source" position={Position.Left} className={handleClass} isConnectable={!data.readOnly} />
-      <Handle id="source-r" type="source" position={Position.Right} className={handleClass} isConnectable={!data.readOnly} />
+      <Handle id="target-l" type="target" position={Position.Left} className={handles} isConnectable={!data.readOnly} />
+      <Handle id="target-r" type="target" position={Position.Right} className={handles} isConnectable={!data.readOnly} />
+      <Handle id="source-l" type="source" position={Position.Left} className={handles} isConnectable={!data.readOnly} />
+      <Handle id="source-r" type="source" position={Position.Right} className={handles} isConnectable={!data.readOnly} />
 
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">

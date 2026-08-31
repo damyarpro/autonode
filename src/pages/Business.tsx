@@ -354,32 +354,36 @@ export default function Business() {
         }
       />
 
-      <Card className="mt-4">
-        <CardHead
-          icon="Sparkles"
-          kicker={COPY.why}
-          title={t(COPY.whyTitle)}
-          subtitle={t(COPY.whySub)}
-          gradient={['#4c1d95', '#8b5cf6']}
-        />
-        <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.whyBody)}</p>
-      </Card>
+      {/* Why the form exists and how far it has got is context, not work: on a
+          wide screen it rides beside the form instead of pushing it down. */}
+      <div className="mt-4 grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,330px)] lg:gap-5">
+        <div className="space-y-3 lg:sticky lg:top-8 lg:order-2">
+          <Card>
+            <CardHead
+              icon="Sparkles"
+              kicker={COPY.why}
+              title={t(COPY.whyTitle)}
+              subtitle={t(COPY.whySub)}
+              gradient={['#4c1d95', '#8b5cf6']}
+            />
+            <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">{t(COPY.whyBody)}</p>
+          </Card>
 
-      {!online && (
-        <div className="mt-3 rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
-          <p className="text-[11.5px] text-white/45">{t(COPY.offline)}</p>
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="mt-2 rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
-          >
-            {t(COPY.retry)}
-          </button>
+          {!online && (
+            <div className="rounded-xl border border-hairline bg-white/[0.03] px-3 py-2.5">
+              <p className="text-[11.5px] text-white/45">{t(COPY.offline)}</p>
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                className="mt-2 rounded-lg border border-hairline px-2.5 py-1 text-[10.5px] text-white/60 transition hover:border-accent/50 hover:text-white"
+              >
+                {t(COPY.retry)}
+              </button>
         </div>
       )}
 
       {online && (
-        <Card className="mt-3">
+        <Card>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[10px] text-white/35">{t(COPY.status)}</div>
@@ -418,191 +422,199 @@ export default function Business() {
         </Card>
       )}
 
-      <Card className="mt-3">
-        <CardHead
-          icon="Pencil"
-          kicker={COPY.form}
-          title={t(COPY.formTitle)}
-          subtitle={t(COPY.formSub)}
-          gradient={['#6d28d9', '#8b5cf6']}
-        />
+        </div>
 
-        <form className="mt-4 flex flex-col gap-4" onSubmit={submit}>
-          <Field label={COPY.nameLabel} htmlFor="business-name" required>
-            <input
-              id="business-name"
-              value={form.name}
-              maxLength={BUSINESS_LIMITS.name}
-              placeholder={t(COPY.namePlaceholder)}
-              onChange={(event) => set('name', event.target.value)}
-              className={`${SHELL} mt-1.5`}
-            />
-          </Field>
+        <Card className="lg:order-1">
+          <CardHead
+            icon="Pencil"
+            kicker={COPY.form}
+            title={t(COPY.formTitle)}
+            subtitle={t(COPY.formSub)}
+            gradient={['#6d28d9', '#8b5cf6']}
+          />
 
-          <Field label={COPY.sellLabel} htmlFor="business-sell" required hint={COPY.sellHint}>
-            <Counted
-              id="business-sell"
-              rows={4}
-              value={form.whatWeSell}
-              limit={BUSINESS_LIMITS.whatWeSell}
-              placeholder={t(COPY.sellPlaceholder)}
-              onChange={(value) => set('whatWeSell', value)}
-            />
-          </Field>
+          <form className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={submit}>
+            <Field label={COPY.nameLabel} htmlFor="business-name" required className="md:col-span-2">
+              <input
+                id="business-name"
+                value={form.name}
+                maxLength={BUSINESS_LIMITS.name}
+                placeholder={t(COPY.namePlaceholder)}
+                onChange={(event) => set('name', event.target.value)}
+                className={`${SHELL} mt-1.5`}
+              />
+            </Field>
 
-          <Field label={COPY.audienceLabel} htmlFor="business-audience" required>
-            <Counted
-              id="business-audience"
-              rows={3}
-              value={form.audience}
-              limit={BUSINESS_LIMITS.audience}
-              placeholder={t(COPY.audiencePlaceholder)}
-              onChange={(value) => set('audience', value)}
-            />
-          </Field>
+            <Field label={COPY.sellLabel} htmlFor="business-sell" required hint={COPY.sellHint}>
+              <Counted
+                id="business-sell"
+                rows={4}
+                value={form.whatWeSell}
+                limit={BUSINESS_LIMITS.whatWeSell}
+                placeholder={t(COPY.sellPlaceholder)}
+                onChange={(value) => set('whatWeSell', value)}
+              />
+            </Field>
 
-          <Field label={COPY.toneLabel} htmlFor="business-tone" hint={TONE_COPY[form.tone].hint}>
-            <div id="business-tone" className="mt-1.5 flex flex-wrap gap-1.5">
-              {BUSINESS_TONES.map((tone) => (
-                <button
-                  key={tone}
-                  type="button"
-                  aria-pressed={form.tone === tone}
-                  onClick={() => set('tone', tone)}
-                  className={`rounded-full px-3 py-1.5 text-[11px] transition ${
-                    form.tone === tone
-                      ? 'bg-accent text-white'
-                      : 'border border-hairline bg-white/[0.03] text-white/50 hover:text-white/85'
-                  }`}
-                >
-                  {t(TONE_COPY[tone].label)}
-                </button>
-              ))}
-            </div>
-          </Field>
+            <Field label={COPY.audienceLabel} htmlFor="business-audience" required>
+              <Counted
+                id="business-audience"
+                rows={3}
+                value={form.audience}
+                limit={BUSINESS_LIMITS.audience}
+                placeholder={t(COPY.audiencePlaceholder)}
+                onChange={(value) => set('audience', value)}
+              />
+            </Field>
 
-          <Field label={COPY.priceLabel} htmlFor="business-price" hint={COPY.priceHint}>
-            <input
-              id="business-price"
-              inputMode="numeric"
-              value={n(form.price)}
-              placeholder={n('0')}
-              onChange={(event) => set('price', toLatinDigits(event.target.value).replace(/\D/g, '').slice(0, 12))}
-              className={`${SHELL} mt-1.5`}
-            />
-            {price > 0 && (
-              <p className="mt-1.5 text-[10.5px] text-white/35">
-                {t(COPY.priceShown)} <span className="text-accent/90">{num(price, 'money')}</span>
-              </p>
-            )}
-          </Field>
-
-          <Field label={COPY.channelsLabel} htmlFor="business-channels" hint={COPY.channelsHint}>
-            <div id="business-channels" className="mt-1.5 flex flex-wrap gap-1.5">
-              {BUSINESS_CHANNELS.map((channel) => {
-                const on = form.channels.includes(channel)
-                return (
+            <Field label={COPY.toneLabel} htmlFor="business-tone" hint={TONE_COPY[form.tone].hint}>
+              <div id="business-tone" className="mt-1.5 flex flex-wrap gap-1.5">
+                {BUSINESS_TONES.map((tone) => (
                   <button
-                    key={channel}
+                    key={tone}
                     type="button"
-                    aria-pressed={on}
-                    onClick={() => toggleChannel(channel)}
-                    className={`inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-1 text-[11px] transition ${
-                      on
+                    aria-pressed={form.tone === tone}
+                    onClick={() => set('tone', tone)}
+                    className={`rounded-full px-3 py-1.5 text-[11px] transition ${
+                      form.tone === tone
                         ? 'bg-accent text-white'
                         : 'border border-hairline bg-white/[0.03] text-white/50 hover:text-white/85'
                     }`}
                   >
-                    <NodeIcon icon={channel} size={20} />
-                    {t(CHANNEL_LABEL[channel])}
+                    {t(TONE_COPY[tone].label)}
                   </button>
-                )
-              })}
-            </div>
-            {form.channels.length === 0 && (
-              <p className="mt-1.5 text-[10.5px] text-white/30">{t(COPY.channelsNone)}</p>
-            )}
-          </Field>
+                ))}
+              </div>
+            </Field>
 
-          <div className="rounded-xl border border-hairline bg-white/[0.02] p-3">
-            <div className="text-[11.5px] text-white/70">{t(COPY.destinations)}</div>
-            <p className="mt-1 text-[10.5px] leading-relaxed text-white/40">{t(COPY.destinationsWhy)}</p>
-
-            <div className="mt-3 flex flex-col gap-3.5">
-              {BUSINESS_CHANNELS.map((channel) => (
-                <Field
-                  key={channel}
-                  label={DESTINATION_COPY[channel].label}
-                  htmlFor={`business-destination-${channel}`}
-                  hint={DESTINATION_COPY[channel].hint}
-                >
-                  <input
-                    id={`business-destination-${channel}`}
-                    // An address is never Persian text, so it reads left to
-                    // right inside a page that otherwise mirrors.
-                    dir="ltr"
-                    value={form.destinations[channel]}
-                    maxLength={DESTINATION_LIMIT}
-                    placeholder={t(DESTINATION_COPY[channel].placeholder)}
-                    onChange={(event) => setDestination(channel, event.target.value)}
-                    className={`${SHELL} mt-1.5 text-start`}
-                  />
-                </Field>
-              ))}
-            </div>
-          </div>
-
-          <Field label={COPY.ctaLabel} htmlFor="business-cta" hint={COPY.ctaHint}>
-            <input
-              id="business-cta"
-              type="url"
-              dir="ltr"
-              value={form.ctaUrl}
-              placeholder={t(COPY.ctaPlaceholder)}
-              onChange={(event) => set('ctaUrl', event.target.value)}
-              className={`${SHELL} mt-1.5 text-start`}
-            />
-          </Field>
-
-          <Field label={COPY.notesLabel} htmlFor="business-notes">
-            <Counted
-              id="business-notes"
-              rows={3}
-              value={form.notes}
-              limit={BUSINESS_LIMITS.notes}
-              placeholder={t(COPY.notesPlaceholder)}
-              onChange={(value) => set('notes', value)}
-            />
-          </Field>
-
-          {error && (
-            <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5">
-              <p className="text-[11.5px] text-[#ff9a76]">{t(errorLine)}</p>
-              {error.messages.length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
-                  {error.messages.map((message) => (
-                    <li key={message}>{t(explainCode(message, n))}</li>
-                  ))}
-                </ul>
+            <Field label={COPY.priceLabel} htmlFor="business-price" hint={COPY.priceHint}>
+              <input
+                id="business-price"
+                inputMode="numeric"
+                value={n(form.price)}
+                placeholder={n('0')}
+                onChange={(event) => set('price', toLatinDigits(event.target.value).replace(/\D/g, '').slice(0, 12))}
+                className={`${SHELL} mt-1.5`}
+              />
+              {price > 0 && (
+                <p className="mt-1.5 text-[10.5px] text-white/35">
+                  {t(COPY.priceShown)} <span className="text-accent/90">{num(price, 'money')}</span>
+                </p>
               )}
-            </div>
-          )}
+            </Field>
 
-          <div>
-            <PrimaryButton type="submit" disabled={saving || blocked}>
-              {t(saving ? COPY.savingNow : COPY.save)}
-            </PrimaryButton>
-            {blocked ? (
-              <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.saveBlocked)}</p>
-            ) : justSaved ? (
-              <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[10.5px] text-success">
-                <Icon name="ShieldCheck" size={12} />
-                {t(COPY.savedNow)}
-              </p>
-            ) : null}
-          </div>
-        </form>
-      </Card>
+            <Field
+              label={COPY.channelsLabel}
+              htmlFor="business-channels"
+              hint={COPY.channelsHint}
+              className="md:col-span-2"
+            >
+              <div id="business-channels" className="mt-1.5 flex flex-wrap gap-1.5">
+                {BUSINESS_CHANNELS.map((channel) => {
+                  const on = form.channels.includes(channel)
+                  return (
+                    <button
+                      key={channel}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleChannel(channel)}
+                      className={`inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-1 text-[11px] transition ${
+                        on
+                          ? 'bg-accent text-white'
+                          : 'border border-hairline bg-white/[0.03] text-white/50 hover:text-white/85'
+                      }`}
+                    >
+                      <NodeIcon icon={channel} size={20} />
+                      {t(CHANNEL_LABEL[channel])}
+                    </button>
+                  )
+                })}
+              </div>
+              {form.channels.length === 0 && (
+                <p className="mt-1.5 text-[10.5px] text-white/30">{t(COPY.channelsNone)}</p>
+              )}
+            </Field>
+
+            <div className="rounded-xl border border-hairline bg-white/[0.02] p-3 md:col-span-2">
+              <div className="text-[11.5px] text-white/70">{t(COPY.destinations)}</div>
+              <p className="mt-1 text-[10.5px] leading-relaxed text-white/40">{t(COPY.destinationsWhy)}</p>
+
+              <div className="mt-3 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                {BUSINESS_CHANNELS.map((channel) => (
+                  <Field
+                    key={channel}
+                    label={DESTINATION_COPY[channel].label}
+                    htmlFor={`business-destination-${channel}`}
+                    hint={DESTINATION_COPY[channel].hint}
+                  >
+                    <input
+                      id={`business-destination-${channel}`}
+                      // An address is never Persian text, so it reads left to
+                      // right inside a page that otherwise mirrors.
+                      dir="ltr"
+                      value={form.destinations[channel]}
+                      maxLength={DESTINATION_LIMIT}
+                      placeholder={t(DESTINATION_COPY[channel].placeholder)}
+                      onChange={(event) => setDestination(channel, event.target.value)}
+                      className={`${SHELL} mt-1.5 text-start`}
+                    />
+                  </Field>
+                ))}
+              </div>
+            </div>
+
+            <Field label={COPY.ctaLabel} htmlFor="business-cta" hint={COPY.ctaHint}>
+              <input
+                id="business-cta"
+                type="url"
+                dir="ltr"
+                value={form.ctaUrl}
+                placeholder={t(COPY.ctaPlaceholder)}
+                onChange={(event) => set('ctaUrl', event.target.value)}
+                className={`${SHELL} mt-1.5 text-start`}
+              />
+            </Field>
+
+            <Field label={COPY.notesLabel} htmlFor="business-notes">
+              <Counted
+                id="business-notes"
+                rows={3}
+                value={form.notes}
+                limit={BUSINESS_LIMITS.notes}
+                placeholder={t(COPY.notesPlaceholder)}
+                onChange={(value) => set('notes', value)}
+              />
+            </Field>
+
+            {error && (
+              <div className="rounded-xl border border-[#ff6b3d]/40 bg-[#ff6b3d]/10 px-3 py-2.5 md:col-span-2">
+                <p className="text-[11.5px] text-[#ff9a76]">{t(errorLine)}</p>
+                {error.messages.length > 0 && (
+                  <ul className="mt-1.5 list-disc space-y-1 ps-4 text-[11.5px] text-white/70 marker:text-[#ff9a76]">
+                    {error.messages.map((message) => (
+                      <li key={message}>{t(explainCode(message, n))}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="md:col-span-2 md:mx-auto md:w-full md:max-w-xs">
+              <PrimaryButton type="submit" disabled={saving || blocked}>
+                {t(saving ? COPY.savingNow : COPY.save)}
+              </PrimaryButton>
+              {blocked ? (
+                <p className="mt-2 text-center text-[10.5px] text-white/30">{t(COPY.saveBlocked)}</p>
+              ) : justSaved ? (
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[10.5px] text-success">
+                  <Icon name="ShieldCheck" size={12} />
+                  {t(COPY.savedNow)}
+                </p>
+              ) : null}
+            </div>
+          </form>
+        </Card>
+      </div>
     </AppShell>
   )
 }
@@ -615,17 +627,19 @@ function Field({
   htmlFor,
   required,
   hint,
+  className = '',
   children,
 }: {
   label: Bi
   htmlFor: string
   required?: boolean
   hint?: Bi
+  className?: string
   children: ReactNode
 }) {
   const { t } = useI18n()
   return (
-    <div>
+    <div className={className}>
       <div className="flex items-baseline justify-between gap-2">
         <label htmlFor={htmlFor} className="text-[11.5px] text-white/70">
           {t(label)}

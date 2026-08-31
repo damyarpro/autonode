@@ -52,7 +52,7 @@ export default function Tools() {
 
       <h2 className="mt-5 text-center text-[16px] font-bold text-white">{t(COPY.aiTitle)}</h2>
       <p className="mb-3 text-center text-[11px] text-white/35">{t(COPY.aiSub)}</p>
-      <div className="mb-6 grid grid-cols-2 gap-2.5">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
         {aiTools.map((tool) => {
           const inner = (
             <>
@@ -85,7 +85,7 @@ export default function Tools() {
 
       <h2 className="text-center text-[16px] font-bold text-white">{t(COPY.coursesTitle)}</h2>
       <p className="mb-3 text-center text-[11px] text-white/35">{t(COPY.coursesSub)}</p>
-      <div className="mb-6 grid grid-cols-2 gap-2.5">
+      <div className="mx-auto mb-6 grid grid-cols-2 gap-2.5 lg:max-w-2xl">
         {courses.map((course) => (
           <div
             key={course.id}
@@ -131,7 +131,7 @@ export default function Tools() {
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-[12px] text-white/25">{t(COPY.noResults)}</p>
       ) : (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((tool) => (
             <a
               key={tool.name}

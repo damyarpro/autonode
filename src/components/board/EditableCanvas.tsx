@@ -543,7 +543,12 @@ function Editor({
         // knows not to fire while someone is typing a name.
         deleteKeyCode={null}
         fitView
-        fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+        // Open on the whole board, at any width — a graph that opens with its
+        // ends off screen is worse on a phone than one that opens small, since
+        // the zoom control is right there and the missing half is not. The
+        // padding is a sixth rather than a third for the same reason: on a
+        // 358px canvas, a third of it spent on margin is a third of the board.
+        fitViewOptions={{ padding: 0.16, maxZoom: 1 }}
         minZoom={0.15}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}

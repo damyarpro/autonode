@@ -58,14 +58,20 @@ export default function Levels() {
 
       {!online && <p className="mb-4 text-center text-[11px] text-white/30">{t(COPY.offline)}</p>}
 
-      <ol>
+      {/*
+        The path reads as one vertical run on a phone, which is what the dashed
+        connector between the cards draws. Wider than that the run is mostly empty
+        gutter, so the cards wrap into a grid and the connector — which means
+        something only in single file — goes with it.
+      */}
+      <ol className="md:grid md:grid-cols-2 md:gap-4 xl:grid-cols-3">
         {levels.map((level, index) => {
           const done = doneFor(level.id)
           const levelPercent = Math.round((done / level.stages) * 100)
           const complete = done >= level.stages
           return (
             <li key={level.id}>
-              <Card className={complete ? 'border-success/35' : ''}>
+              <Card className={`md:h-full ${complete ? 'border-success/35' : ''}`}>
                 <div className="flex items-start gap-3">
                   <span
                     className={`grid h-11 w-11 shrink-0 place-items-center rounded-[13px] text-white ${
@@ -108,18 +114,18 @@ export default function Levels() {
               </Card>
 
               {index < levels.length - 1 && (
-                <div className="mx-auto my-1.5 h-6 w-px border-s border-dashed border-success/40" />
+                <div className="mx-auto my-1.5 h-6 w-px border-s border-dashed border-success/40 md:hidden" />
               )}
             </li>
           )
         })}
       </ol>
 
-      <div className="mx-auto my-2 flex h-8 items-end justify-center">
+      <div className="mx-auto my-2 flex h-8 items-end justify-center md:hidden">
         <Icon name="ChevronLeft" size={16} className="-rotate-90 text-success/60" />
       </div>
 
-      <div className="mx-auto flex w-fit items-center gap-2.5 rounded-2xl border border-hairline bg-white/[0.03] px-4 py-2.5">
+      <div className="mx-auto flex w-fit items-center gap-2.5 rounded-2xl border border-hairline bg-white/[0.03] px-4 py-2.5 md:mt-6">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-[linear-gradient(135deg,#4c1d95,#7c3aed)] text-white">
           <Icon name="Target" size={15} />
         </span>
