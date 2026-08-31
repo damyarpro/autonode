@@ -408,7 +408,7 @@ export default function BoardEditor() {
         <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3 lg:mt-4 lg:flex-row lg:gap-4">
           {/* A phone gives the canvas a fixed slice of the screen and scrolls
               past it; `lg` hands it every pixel the panels do not want. */}
-          <div className="h-[58vh] min-h-[320px] shrink-0 overflow-hidden rounded-2xl border border-hairline bg-panel/40 lg:h-auto lg:min-h-0 lg:flex-1 lg:shrink">
+          <div className="h-[58vh] max-h-[560px] min-h-[320px] shrink-0 overflow-hidden rounded-2xl border border-hairline bg-panel/40 lg:h-auto lg:max-h-none lg:min-h-0 lg:flex-1 lg:shrink">
             <EditableCanvas
               graph={shown}
               readOnly={readOnly || viewing !== null}

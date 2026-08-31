@@ -73,6 +73,11 @@ export default function KpiBar({ metrics }: { metrics: Record<string, number> })
             className="rise-in flex items-center gap-3 bg-panel px-3.5 py-2.5 lg:px-5 lg:py-3.5"
             style={{ animationDelay: `${i * 70}ms` }}
           >
+            {/* The glyph is what tells the four apart at a glance, so on a
+                195px phone column it shrinks rather than disappearing. */}
+            <div className="sm:hidden">
+              <KpiIcon icon={kpi.icon} size={26} />
+            </div>
             <div className="hidden sm:block">
               <KpiIcon icon={kpi.icon} />
             </div>

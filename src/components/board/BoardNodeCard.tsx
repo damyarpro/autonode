@@ -69,10 +69,10 @@ const handleClass = [
   'opacity-0 transition-opacity duration-150 group-hover:opacity-100',
   '!h-2.5 !w-2.5 !rounded-full !border !border-white/40 !bg-accent',
   '[@media(pointer:coarse)]:!h-4 [@media(pointer:coarse)]:!w-4',
-  // React Flow marks only its pane `touch-action: none`. A wire dragged off a
-  // handle mostly travels up or down, and without this the nearest scroller
-  // claims that as a page scroll and the browser cancels the pointer — so on a
-  // phone the connection simply never happened.
+  // React Flow marks only its own pane `touch-action: none`. A wire is dragged
+  // mostly up or down, and on a phone the page under the canvas scrolls — so
+  // the handles claim the gesture rather than leaving the browser entitled to
+  // read it as a scroll and cancel the pointer mid-drag.
   'touch-none',
 ].join(' ')
 

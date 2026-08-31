@@ -64,7 +64,8 @@ const MARGIN = 10
 /** Narrower than this and the menu docks to the bottom edge instead. */
 const COMPACT = '(max-width: 639px)'
 
-function useCompact(): boolean {
+/** Shared with the canvas, which has its own reason to know (see `autoPanOnConnect`). */
+export function useCompact(): boolean {
   const [compact, setCompact] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(COMPACT).matches,
   )
