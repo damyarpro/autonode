@@ -353,7 +353,7 @@ export default function Calls() {
 
       {/* Two columns of work above `lg`: the lead and the brief you dial from
           on one side, the calendar and what came of it on the other. */}
-      <div className="mt-4 grid items-start gap-3 lg:grid-cols-2 lg:gap-5">
+      <div className="mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
         <div className="space-y-3">
           {/* 1 — the lead every action on this page needs. */}
           <Card>

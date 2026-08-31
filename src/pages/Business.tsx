@@ -354,10 +354,12 @@ export default function Business() {
         }
       />
 
-      {/* Why the form exists and how far it has got is context, not work: on a
-          wide screen it rides beside the form instead of pushing it down. */}
-      <div className="mt-4 grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,330px)] lg:gap-5">
-        <div className="space-y-3 lg:sticky lg:top-8 lg:order-2">
+      {/* Why the form exists and how far it has got is context, not work, so it
+          rides beside the form instead of pushing it down. Not at `lg`: the rail
+          has just taken 240px and the form would be left too narrow to pair its
+          own fields, which is the widening that matters more. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,330px)] xl:gap-5">
+        <div className="space-y-3 xl:sticky xl:top-8 xl:order-2">
           <Card>
             <CardHead
               icon="Sparkles"
@@ -424,7 +426,7 @@ export default function Business() {
 
         </div>
 
-        <Card className="lg:order-1">
+        <Card className="xl:order-1">
           <CardHead
             icon="Pencil"
             kicker={COPY.form}

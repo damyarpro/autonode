@@ -327,7 +327,7 @@ export default function Content() {
 
       {/* The work column and the results column: on a wide screen the pieces
           stand beside the form that makes them instead of a scroll below it. */}
-      <div className="mt-3 grid items-start gap-3 lg:grid-cols-[minmax(0,430px)_minmax(0,1fr)] lg:gap-5">
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
         <div className="space-y-3">
           <Card>
             <CardHead

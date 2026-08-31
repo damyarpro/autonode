@@ -306,7 +306,7 @@ export default function Studio() {
 
       {/* Two independent generators. They are the same shape and neither
           feeds the other, so on a wide screen they sit abreast. */}
-      <div className="mt-3 grid items-start gap-3 lg:grid-cols-2 lg:gap-5">
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-5">
         <Card>
           <BrandHead kind="voice" kicker={COPY.voiceKicker} title={COPY.voiceTitle} adapter={adapters?.voiceover} />
 
