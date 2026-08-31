@@ -1,24 +1,20 @@
 import { NavLink } from 'react-router-dom'
 import { Icon } from './Icon'
+import { tabs } from '../data/nav'
 import { useI18n } from '../i18n/I18nProvider'
-import type { Bi } from '../data/types'
 
-const TABS: { to: string; icon: string; label: Bi }[] = [
-  { to: '/', icon: 'Home', label: { fa: 'داشبورد', en: 'Dashboard' } },
-  { to: '/levels', icon: 'Trophy', label: { fa: 'مراحل', en: 'Levels' } },
-  { to: '/profile', icon: 'User', label: { fa: 'پروفایل', en: 'Profile' } },
-  { to: '/ai-coach', icon: 'Brain', label: { fa: 'AI کوچ', en: 'AI coach' } },
-  { to: '/tools', icon: 'Wrench', label: { fa: 'ابزارها', en: 'Tools' } },
-]
-
-/** Fixed bottom navigation, in the screenshots' order (dashboard on the right). */
+/**
+ * Fixed bottom navigation on a phone. Above `lg` the side rail takes over and
+ * this is hidden, together with the space it reserves — see `--tabbar` in
+ * src/styles/index.css.
+ */
 export default function TabBar() {
   const { t } = useI18n()
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-[#0b0b12]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-[#0b0b12]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <ul className="mx-auto flex max-w-2xl items-stretch">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <li key={tab.to} className="flex-1">
             <NavLink
               to={tab.to}

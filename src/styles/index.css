@@ -15,6 +15,14 @@
     --tabbar: 62px;
   }
 
+  /* Above lg the bottom bar is replaced by the side rail, so the height it
+     reserved has to go — a full-height page would otherwise be short by 62px. */
+  @media (min-width: 1024px) {
+    :root {
+      --tabbar: 0px;
+    }
+  }
+
   html,
   body,
   #root {
