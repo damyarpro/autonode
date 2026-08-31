@@ -16,22 +16,8 @@
  * The variables are read from `process.env` at call time rather than from
  * `env.ts`, so this adapter is self-contained and a test can toggle them.
  */
-import type { Lead, Message } from '../../types.ts'
-import type { ChannelAdapter } from '../types.ts'
-
-/**
- * What `ChannelAdapter.send` promises, plus the reason a live channel refused.
- * The interface's return type does not carry a reason, and widening it is not
- * this change's to make, so the code rides along as an extra property: the
- * callers that ignore it are unaffected, and the one that wants it can read it
- * without another round trip.
- */
-export type ChannelSendResult = {
-  status: Message['status']
-  externalId?: string
-  /** `channel:code`, for `explainCode` on the client. */
-  reason?: string
-}
+import type { Lead } from '../../types.ts'
+import { isAudience, type ChannelAdapter, type ChannelSendResult } from '../types.ts'
 
 const accessToken = () => process.env.LINKEDIN_ACCESS_TOKEN ?? ''
 const baseUrl = () => (process.env.LINKEDIN_API_BASE ?? 'https://api.linkedin.com/rest').replace(/\/+$/, '')
@@ -64,6 +50,8 @@ export const linkedinChannel: ChannelAdapter = {
   live: true,
 
   async send(lead: Lead, body: string): Promise<ChannelSendResult> {
+    if (!isAudience(lead)) return { status: 'failed', reason: 'linkedin:no_direct_message' }
+
     const author = authorUrn(lead.external_id)
     if (!author) return { status: 'failed', reason: 'linkedin:needs_target' }
 

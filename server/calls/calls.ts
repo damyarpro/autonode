@@ -1,7 +1,14 @@
 import * as q from '../db/queries.ts'
 import { publish } from '../events.ts'
 import { ai, channelFor, voice } from '../adapters/registry.ts'
-import { bookMeeting as markMeetingBooked } from '../service.ts'
+import { bookMeeting as markMeetingBooked, completeCall } from '../service.ts'
+import {
+  callConsequence,
+  DEFAULT_MIN_CONVERSATION_SECONDS,
+  parseCallOutcome,
+  type CallConsequenceReason,
+  type CallOutcome,
+} from '../domain/call-outcome.ts'
 import {
   composeBrief,
   DEFAULT_HOURS,
@@ -61,6 +68,12 @@ const reminderOffsets = (): number[] => {
 }
 
 const referralAskDays = () => number('REFERRAL_ASK_DAYS', 7)
+
+/** How long a call has to run before it counts as a conversation. */
+const minConversationSeconds = () => number('CALL_MIN_CONVERSATION_SECONDS', DEFAULT_MIN_CONVERSATION_SECONDS)
+
+/** The provider's name for its end-of-call message, in case that ever moves. */
+const reportMessageType = () => process.env.VAPI_REPORT_MESSAGE_TYPE?.trim() || undefined
 
 const localeOf = (lead: Lead): 'fa' | 'en' => (lead.locale === 'en' ? 'en' : 'fa')
 
@@ -185,6 +198,62 @@ export async function prepareCall(
   })
   publish({ type: 'call.prepared', leadId, nodeId: 'vapi' })
   return { lead, brief, call }
+}
+
+// ── what the call actually did ───────────────────────────────────────────
+
+export type CallOutcomeResult =
+  | {
+      ok: true
+      call: q.CallRecord
+      outcome: CallOutcome
+      recorded: q.CallOutcomeRow
+      /** Whether this report is what moved the lead on, this time. */
+      advanced: boolean
+      reason: CallConsequenceReason
+    }
+  | { ok: false; code: 'not_a_report' | 'unknown_call' }
+
+/**
+ * The other half of `prepareCall`: the provider's report of what happened once
+ * the call was over. Placing a call only ever wrote `dialled`; this is what
+ * makes the row say whether anyone answered.
+ *
+ * The payload is stored whole either way, so an outcome the parser could not
+ * read is a row to look at rather than a silent loss — but only a call that
+ * the provider says ended between two people, and ran long enough to be a
+ * conversation, writes `call_completed` and moves the lead.
+ */
+export function recordCallOutcome(payload: unknown): CallOutcomeResult {
+  const outcome = parseCallOutcome(payload, { reportType: reportMessageType() })
+  // Transcripts, status updates and hangs land on the same URL mid-call. They
+  // are normal traffic, not an outcome, and nothing about them is ours to keep.
+  if (!outcome.isReport) return { ok: false, code: 'not_a_report' }
+  if (!outcome.externalId) return { ok: false, code: 'unknown_call' }
+
+  const call = q.callByExternalId(outcome.externalId)
+  if (!call) return { ok: false, code: 'unknown_call' }
+
+  const previous = q.callOutcomeFor(call.id)
+  const recorded = q.saveCallOutcome({
+    callId: call.id,
+    status: outcome.status,
+    endedReason: outcome.endedReason,
+    seconds: outcome.seconds,
+    recordingUrl: outcome.recordingUrl,
+    transcript: outcome.transcript,
+    summary: outcome.summary,
+    raw: payload,
+  })
+
+  const consequence = callConsequence(outcome, minConversationSeconds())
+  // A retried report must not log the call twice; the first one that said the
+  // call completed is the one that counts.
+  const advanced = consequence.event !== null && previous?.status !== 'completed'
+  if (advanced) completeCall(call.lead_id)
+
+  publish({ type: 'call.reported', leadId: call.lead_id, nodeId: 'vapi' })
+  return { ok: true, call, outcome, recorded, advanced, reason: consequence.reason }
 }
 
 // ── the worker passes ────────────────────────────────────────────────────

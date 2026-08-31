@@ -146,8 +146,14 @@ involved. Keep it that way: a split deployment breaks cookie auth. The
 | Content factory | real, at `#/content` — writes, schedules, publishes when due |
 | Meetings, reminders, referral ask | real, at `#/calls` — slots, bookings, one ask per customer |
 | Call brief | real — the dialling is what needs `VAPI_API_KEY` |
+| Publishing destinations | real, per channel on the business profile; a channel without one cannot publish |
 | Telegram | real delivery with `TELEGRAM_BOT_TOKEN` |
-| Instagram / LinkedIn / YouTube / Website | signed webhook in; outbound is recorded, not delivered |
+| Website out | real with `WEBSITE_PUBLISH_URL` — a signed POST to your own endpoint |
+| LinkedIn out | real with `LINKEDIN_ACCESS_TOKEN`; needs approved API access (never run live from here) |
+| Instagram out | real with `INSTAGRAM_ACCESS_TOKEN`; needs App Review, and refuses text with no media (never run live) |
+| YouTube out | real with a refresh token; needs a Google audit, and refuses a script with no video (never run live) |
+| Inbound on all five | real — signed webhook, or Telegram's secret path |
+| Call outcome | real — `POST /api/webhooks/vapi/:secret` records what happened (never run live) |
 | Coach and outreach copy | Claude with `ANTHROPIC_API_KEY`, templates otherwise |
 | Voice-over | timed, speakable script; real audio with `ELEVENLABS_API_KEY` (never run live from here) |
 | Ad video | shot-by-shot storyboard; real render with `HIGGSFIELD_API_KEY` (never run live from here) |

@@ -6,12 +6,35 @@ import type { BusinessProfile } from '../domain/business.ts'
 import type { ContentBrief, ContentLocale, ContentWritten } from '../domain/content.ts'
 
 /** Anything that can put a message in front of a lead. */
+/**
+ * What `ChannelAdapter.send` answers. `reason` is a `channel:code` string the
+ * client turns into a sentence, so a live channel can say *why* it refused —
+ * "Instagram cannot publish text on its own" is a different fact from
+ * "Instagram rejected this", and the owner can act on only one of them.
+ */
+export type ChannelSendResult = {
+  status: Message['status']
+  externalId?: string
+  reason?: string
+}
+
 export interface ChannelAdapter {
   readonly channel: Channel
   /** False when the adapter only records the message instead of delivering it. */
   readonly live: boolean
-  send(lead: Lead, body: string): Promise<{ externalId?: string; status: Message['status'] }>
+  send(lead: Lead, body: string): Promise<ChannelSendResult>
 }
+
+/**
+ * All four publishing APIs put a piece in front of an audience; not one of them
+ * can put a private message in front of one person, which is a different
+ * product and a different approval on every platform. `channelFor` hands the
+ * same adapter to the content factory and to the nurture pass, so the two have
+ * to be told apart: the factory's audience stand-in carries id 0, and a lead
+ * read from the database never does. Refusing the second is what keeps one
+ * lead's nurture message off a public feed.
+ */
+export const isAudience = (lead: Lead): boolean => lead.id === 0
 
 export type DraftInput = {
   lead: Lead

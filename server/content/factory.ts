@@ -162,7 +162,10 @@ export async function publishDue(now = new Date(), limit = 25): Promise<number> 
       const result = await adapter.send(audience(piece, target), piece.body)
 
       if (result.status === 'failed') {
-        q.markContentStatus(piece.id, 'failed', `${piece.channel}:rejected`)
+        // The adapter's own reason when it has one: "Instagram cannot publish
+        // text on its own" is something the owner can act on, and "Instagram
+        // rejected this piece" is not.
+        q.markContentStatus(piece.id, 'failed', result.reason ?? `${piece.channel}:rejected`)
         continue
       }
 

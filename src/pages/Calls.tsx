@@ -98,6 +98,11 @@ const COPY = {
   callsLog: { fa: 'تماس‌ها', en: 'Calls' },
   noBookings: { fa: 'هنوز جلسه‌ای رزرو نشده است.', en: 'No meetings booked yet.' },
   noCalls: { fa: 'هنوز تماسی ثبت نشده است.', en: 'No calls logged yet.' },
+  seconds: { fa: 'ث', en: 's' },
+  noOutcome: {
+    fa: 'هنوز گزارشی از سرویس تماس نرسیده.',
+    en: 'The call service has not reported back on this one.',
+  },
   scopedToLead: {
     fa: 'فهرست تماس‌ها فقط برای لید انتخاب‌شده است.',
     en: 'The call list is scoped to the selected lead.',
@@ -143,6 +148,15 @@ const CALL_STATUS: Record<string, Bi> = {
   dialled: { fa: 'شماره‌گیری شد', en: 'dialled' },
   simulated: { fa: 'شبیه‌سازی‌شده', en: 'simulated' },
   failed: { fa: 'ناموفق', en: 'failed' },
+}
+
+/** What the provider said happened, once it reports back. */
+const OUTCOME_STATUS: Record<string, Bi> = {
+  completed: { fa: 'انجام شد', en: 'held' },
+  no_answer: { fa: 'جواب نداد', en: 'no answer' },
+  voicemail: { fa: 'پیام‌گیر', en: 'voicemail' },
+  failed: { fa: 'ناموفق', en: 'failed' },
+  unknown: { fa: 'نامشخص', en: 'unknown' },
 }
 
 const BOOKING_STATUS: Record<string, Bi> = {
@@ -669,7 +683,9 @@ function BookingRow({ booking, who, when }: { booking: Booking; who: string; whe
 }
 
 function CallRow({ call, who, when }: { call: CallRecord; who: string; when: string }) {
-  const { t } = useI18n()
+  const { t, num } = useI18n()
+  const outcome = call.outcome
+
   return (
     <li className="rounded-xl border border-hairline bg-white/[0.02] px-2.5 py-2 text-[11.5px]">
       <div className="flex items-center gap-2">
@@ -679,11 +695,22 @@ function CallRow({ call, who, when }: { call: CallRecord; who: string; when: str
             {when} · {call.provider}
           </span>
         </span>
+        {/* The dialling status is what we did; the outcome is what happened. A
+            call with no outcome is one the provider never reported on. */}
         <Chip tone={call.status === 'failed' ? 'hot' : 'neutral'}>{t(labelOf(CALL_STATUS, call.status))}</Chip>
+        {outcome && (
+          <Chip tone={outcome.status === 'completed' ? 'accent' : 'neutral'}>
+            {t(labelOf(OUTCOME_STATUS, outcome.status))}
+            {outcome.seconds !== null ? ` · ${num(Math.round(outcome.seconds))}${t(COPY.seconds)}` : ''}
+          </Chip>
+        )}
       </div>
       <p dir="auto" className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-white/45">
-        {call.brief.opening}
+        {outcome?.summary ?? call.brief.opening}
       </p>
+      {outcome === null && (
+        <p className="mt-1 text-[10px] text-white/25">{t(COPY.noOutcome)}</p>
+      )}
     </li>
   )
 }

@@ -20,6 +20,21 @@ export type CallBrief = {
   producedBy: 'claude' | 'template'
 }
 
+/**
+ * What the provider reported after the call ended. Absent on every call the
+ * provider has not reported on — including all of them while no Vapi webhook
+ * is configured, which is why the page must never assume it is there.
+ */
+export type CallOutcome = {
+  call_id: number
+  status: string
+  ended_reason: string | null
+  seconds: number | null
+  recording_url: string | null
+  transcript: string | null
+  summary: string | null
+}
+
 export type CallRecord = {
   id: number
   lead_id: number
@@ -29,6 +44,7 @@ export type CallRecord = {
   produced_by: string
   at: string
   brief: CallBrief
+  outcome: CallOutcome | null
 }
 
 export type Booking = {

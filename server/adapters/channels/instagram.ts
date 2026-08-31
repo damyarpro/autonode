@@ -19,10 +19,9 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { Lead } from '../../types.ts'
-import type { ChannelAdapter } from '../types.ts'
+import { isAudience, type ChannelAdapter, type ChannelSendResult } from '../types.ts'
 // Its home is `adapters/types.ts`, which every adapter shares; it lives beside
 // the first channel that needed it until the interface itself carries a reason.
-import type { ChannelSendResult } from './linkedin.ts'
 
 const accessToken = () => process.env.INSTAGRAM_ACCESS_TOKEN ?? ''
 const baseUrl = () => (process.env.INSTAGRAM_API_BASE ?? 'https://graph.facebook.com/v21.0').replace(/\/+$/, '')
@@ -108,6 +107,9 @@ export const instagramChannel: ChannelAdapter = {
   live: true,
 
   async send(lead: Lead, body: string): Promise<ChannelSendResult> {
+    // This is the publishing API, not the messaging one.
+    if (!isAudience(lead)) return { status: 'failed', reason: 'instagram:no_direct_message' }
+
     const igUserId = lead.external_id?.trim() ?? ''
     if (!igUserId) return { status: 'failed', reason: 'instagram:needs_target' }
 

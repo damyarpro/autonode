@@ -426,6 +426,34 @@ test('the business profile round-trips and reports what is still missing', async
   assert.deepEqual(body.missing, [])
 })
 
+test('publishing destinations are validated per channel and patched one at a time', async () => {
+  type Body = { business: { destinations: Record<string, string | null> }; errors?: string[] }
+
+  const bad = await send('PATCH', '/api/business', {
+    destinations: { linkedin: 'x'.repeat(201), instagram: 12 },
+  })
+  assert.equal(bad.statusCode, 400)
+  // Every bad field at once, as codes rather than prose (rule 11).
+  assert.deepEqual((bad.json() as Body).errors, ['instagram:not_text', 'linkedin:too_long:200'])
+
+  const saved = await send('PATCH', '/api/business', {
+    destinations: { linkedin: '  urn:li:organization:42  ', instagram: '17841400000000000' },
+  })
+  assert.equal(saved.statusCode, 200)
+  const stored = (saved.json() as Body).business.destinations
+  assert.equal(stored.linkedin, 'urn:li:organization:42', 'trimmed, and no shape rule was guessed')
+  assert.equal(stored.telegram, null, 'a channel never named stays unset')
+
+  // A channel left out keeps what it has; a blank one is cleared to null.
+  const patched = await send('PATCH', '/api/business', { destinations: { instagram: '   ' } })
+  const after = (patched.json() as Body).business.destinations
+  assert.equal(after.instagram, null, 'blank means not set, never a stored empty string')
+  assert.equal(after.linkedin, 'urn:li:organization:42', 'the untouched channel is left alone')
+
+  const reread = (await get('/api/business')).json() as Body
+  assert.equal(reread.business.destinations.linkedin, 'urn:li:organization:42')
+})
+
 test('content is produced, listed, published and deleted', async () => {
   const produced = await send('POST', '/api/content/produce', {
     count: 3,
@@ -529,4 +557,86 @@ test('a voice job with no credentials returns a timed script, not a failure', as
   assert.equal(job.adapter, 'script-only')
   assert.ok(job.output.script.lines.length > 0)
   assert.ok(job.output.script.durationSec > 0)
+})
+
+test('the vapi webhook records the call outcome, and only behind its secret', async () => {
+  // The secret is read on the first request to the route, not at import, so it
+  // can be set here rather than at the top of this file with the rest.
+  process.env.VAPI_WEBHOOK_SECRET = 'routes-test-vapi-secret'
+  const path = `/api/webhooks/vapi/${process.env.VAPI_WEBHOOK_SECRET}`
+
+  const lead = await createLead()
+  const prepared = await send('POST', `/api/calls/${lead.id}/prepare`)
+  assert.equal(prepared.statusCode, 200)
+  const { brief } = prepared.json() as { brief: import('../domain/booking.ts').CallBrief }
+
+  // With no VAPI_API_KEY nothing was dialled, so there is no provider id to
+  // report against. This is the row a credentialed dialler would have written.
+  const q = await import('../db/queries.ts')
+  const call = q.recordCall({
+    leadId: lead.id,
+    provider: 'vapi',
+    status: 'dialled',
+    externalId: 'routes-test-call-1',
+    brief,
+  })
+
+  const stranger = await send('POST', '/api/webhooks/vapi/not-the-secret', {
+    message: { type: 'end-of-call-report', call: { id: 'routes-test-call-1' }, endedReason: 'customer-ended-call' },
+  })
+  assert.equal(stranger.statusCode, 404, 'an unauthenticated report never reaches the funnel')
+  assert.equal(q.callOutcomeFor(call.id), undefined, 'and writes nothing on its way out')
+
+  const midCall = await send('POST', path, { message: { type: 'transcript', call: { id: 'routes-test-call-1' } } })
+  assert.equal(midCall.statusCode, 200, 'live messages are acknowledged so nothing retries')
+  assert.equal((midCall.json() as { ignored?: boolean }).ignored, true)
+  assert.equal(q.callOutcomeFor(call.id), undefined)
+
+  const unknown = await send('POST', path, {
+    message: { type: 'end-of-call-report', call: { id: 'never-placed' }, endedReason: 'customer-ended-call' },
+  })
+  assert.equal(unknown.statusCode, 404, 'a report for a call we never placed is a clean 404, not a 500')
+
+  const report = await send('POST', path, {
+    message: {
+      type: 'end-of-call-report',
+      call: { id: 'routes-test-call-1' },
+      endedReason: 'customer-ended-call',
+      durationSeconds: 187,
+      recordingUrl: 'https://example.invalid/routes-test.mp3',
+      analysis: { summary: 'Asked for a proposal.' },
+    },
+  })
+  assert.equal(report.statusCode, 200)
+  const body = report.json() as { status: string; seconds: number; advanced: boolean; reason: string }
+  assert.deepEqual(
+    { status: body.status, seconds: body.seconds, advanced: body.advanced, reason: body.reason },
+    { status: 'completed', seconds: 187, advanced: true, reason: 'answered' },
+  )
+
+  const stored = q.callOutcomeFor(call.id)!
+  assert.equal(stored.status, 'completed')
+  assert.equal(stored.ended_reason, 'customer-ended-call')
+  assert.equal(stored.recording_url, 'https://example.invalid/routes-test.mp3')
+  assert.equal(stored.summary, 'Asked for a proposal.')
+  assert.ok(stored.raw_json.includes('end-of-call-report'), 'the payload is kept whole')
+
+  const after = await get(`/api/leads/${lead.id}`)
+  assert.equal((after.json() as { lead: { stage: string } }).lead.stage, 'qualified')
+
+  // The provider retries; the lead is not logged as having spoken to us twice.
+  const replay = await send('POST', path, {
+    message: {
+      type: 'end-of-call-report',
+      call: { id: 'routes-test-call-1' },
+      endedReason: 'customer-ended-call',
+      durationSeconds: 187,
+    },
+  })
+  assert.equal(replay.statusCode, 200)
+  assert.equal((replay.json() as { advanced: boolean }).advanced, false)
+
+  const events = await get(`/api/leads/${lead.id}`)
+  const logged = (events.json() as { events: { type: string }[] }).events.filter((e) => e.type === 'call_completed')
+  assert.equal(logged.length, 1)
 })

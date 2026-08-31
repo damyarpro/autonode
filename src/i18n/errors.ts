@@ -103,6 +103,36 @@ export function explainCode(code: string, label?: Bi, digits: (value: string) =>
         fa: `«${name.fa}» این تکه را نپذیرفت.`,
         en: `“${name.en}” rejected this piece.`,
       }
+    case 'needs_media':
+      return {
+        fa: `«${name.fa}» متن تنها را منتشر نمی‌کند؛ به یک عکس یا ویدیو با لینک عمومی نیاز دارد.`,
+        en: `“${name.en}” cannot publish text alone; it needs an image or video at a public URL.`,
+      }
+    case 'needs_video':
+      return {
+        fa: `«${name.fa}» به فایل ویدیو نیاز دارد. متن گویندگی، ویدیو نیست.`,
+        en: `“${name.en}” needs a video file. A script is not a video.`,
+      }
+    case 'needs_target':
+      return {
+        fa: `برای «${name.fa}» مقصد انتشار تعیین نشده. در پروفایل بیزینسی پرش کن.`,
+        en: `“${name.en}” has no publishing destination yet. Set one in the business profile.`,
+      }
+    case 'not_ready':
+      return {
+        fa: `«${name.fa}» هنوز آماده‌ی انتشار نیست؛ کمی بعد دوباره تلاش می‌شود.`,
+        en: `“${name.en}” is not ready to publish yet; it will be retried.`,
+      }
+    case 'no_direct_message':
+      return {
+        fa: `«${name.fa}» فقط برای انتشار عمومی است و پیام خصوصی نمی‌فرستد.`,
+        en: `“${name.en}” only publishes to an audience; it cannot send a private message.`,
+      }
+    case 'unreachable':
+      return {
+        fa: `«${name.fa}» در دسترس نبود.`,
+        en: `“${name.en}” could not be reached.`,
+      }
     case 'unknown_lead':
       return { fa: 'این لید پیدا نشد.', en: 'No such lead.' }
 

@@ -54,8 +54,12 @@ export default async function callRoutes(app: FastifyInstance) {
   app.get('/api/calls', async (request) => {
     const { leadId } = request.query as { leadId?: string }
     const id = Number(leadId)
+    const calls = Number.isInteger(id) && id > 0 ? q.leadCalls(id) : q.listCalls()
+
     return {
-      calls: Number.isInteger(id) && id > 0 ? q.leadCalls(id) : q.listCalls(),
+      // The outcome is what the provider reported back after the call; a call
+      // with none is one that was set up and never heard from again.
+      calls: calls.map((call) => ({ ...call, outcome: q.callOutcomeFor(call.id) ?? null })),
       bookings: q.listBookings(),
       counts: q.callCounts(),
       adapter: voice().name,

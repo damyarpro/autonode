@@ -1,9 +1,10 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { env } from '../env.ts'
 import { CHANNELS, type Channel } from '../types.ts'
 import { verifyCheckout } from '../domain/checkout-token.ts'
 import * as q from '../db/queries.ts'
+import { recordCallOutcome } from '../calls/calls.ts'
 import { capture, capturePayment, handleInbound } from '../service.ts'
 
 type TelegramUpdate = {
@@ -22,6 +23,32 @@ const signatureMatches = (raw: string, signature: string) => {
   const b = Buffer.from(signature)
   return a.length === b.length && timingSafeEqual(a, b)
 }
+
+/** Constant-time, and never true for an empty secret on either side. */
+const secretMatches = (given: string, expected: string) => {
+  if (!expected || !given) return false
+  const a = Buffer.from(given)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+let vapiSecret: string | null = null
+
+/**
+ * Read once, on first use, so the path is stable for the life of the process
+ * and a test can still set the variable after this module is imported —
+ * `env.ts` reads the environment before either. Random when unset: an
+ * unconfigured deployment gets an unreachable endpoint, not an open one.
+ */
+const vapiWebhookSecret = () => (vapiSecret ??= process.env.VAPI_WEBHOOK_SECRET || randomBytes(16).toString('hex'))
+
+/**
+ * The path an operator pastes into Vapi's server URL, for `GET /api/health` to
+ * report. Null when the secret is the per-boot random one: that path would stop
+ * working at the next restart, so advertising it would be worse than silence.
+ */
+export const vapiWebhookPath = (): string | null =>
+  process.env.VAPI_WEBHOOK_SECRET ? `/api/webhooks/vapi/${vapiWebhookSecret()}` : null
 
 export default async function webhooks(app: FastifyInstance) {
   /**
@@ -83,6 +110,48 @@ export default async function webhooks(app: FastifyInstance) {
       message: body.message,
     })
     return reply.code(201).send({ lead })
+  })
+
+  /**
+   * What the dialler saw. `prepareCall` starts a call and stores the provider's
+   * id; this is the only way the funnel ever learns whether anyone picked up.
+   *
+   * The secret is a path segment rather than an HMAC because that is what fits
+   * the provider: Vapi posts its server messages to a URL we choose in full and
+   * signs nothing, so a signature would have to be a custom header the provider
+   * is configured to echo, while a secret path needs nothing but the URL. It is
+   * the same shape as the Telegram webhook above, for the same reason.
+   *
+   * It writes to the funnel, so it is closed by default: with no
+   * `VAPI_WEBHOOK_SECRET` the segment is random per boot and no request can
+   * reach the handler. A wrong secret is a 404, not a 401 — an endpoint nobody
+   * is meant to find should not confirm that it exists.
+   */
+  app.post('/api/webhooks/vapi/:secret', async (request, reply) => {
+    const { secret } = request.params as { secret: string }
+    if (!secretMatches(secret, vapiWebhookSecret())) return reply.code(404).send({ error: 'not found' })
+
+    const result = recordCallOutcome(request.body)
+
+    // Every mid-call message lands here too. Acknowledged and dropped, so the
+    // provider does not retry traffic there was never anything to do with.
+    if (!result.ok && result.code === 'not_a_report') return { ok: true, ignored: true }
+
+    // A report for a call this database never placed is a 404 on purpose: it
+    // means a misconfiguration — the wrong deployment, a restored database —
+    // and swallowing it with a 200 would hide that for good.
+    if (!result.ok) return reply.code(404).send({ error: 'not found', errors: ['callId:unknown_call'] })
+
+    return {
+      ok: true,
+      callId: result.call.id,
+      leadId: result.call.lead_id,
+      status: result.outcome.status,
+      seconds: result.outcome.seconds,
+      endedReason: result.outcome.endedReason,
+      reason: result.reason,
+      advanced: result.advanced,
+    }
   })
 
   /**

@@ -241,7 +241,7 @@ export const nodes: StageNode[] = [
     kicker: { en: 'VAPI VOICE AI', fa: 'VAPI VOICE AI' },
     title: { en: 'Automated voice follow-up', fa: 'پیگیری صوتی خودکار' },
     meta: { en: 'Qualify · Handle doubts · Book', fa: 'صلاحیت · رفع شبهه · رزرو' },
-    stat: { text: { en: 'AI calls {n}', fa: 'تماس AI {n}' }, value: 105 },
+    stat: { text: { en: '{n} calls held', fa: '{n} تماس انجام‌شده' }, value: 105 },
   },
   {
     id: 'salescall',

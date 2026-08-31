@@ -21,6 +21,7 @@ process.env.WORKER_ENABLED = 'false'
 process.env.TELEGRAM_BOT_TOKEN = 'test-token'
 delete process.env.ANTHROPIC_API_KEY
 
+const { emptyDestinations } = await import('../domain/business.ts')
 const q = await import('../db/queries.ts')
 const { persistPlan, produce, publishDue } = await import('./factory.ts')
 const { closeDatabase } = await import('../db/index.ts')
@@ -41,6 +42,9 @@ const fillProfile = () =>
     audience: 'صاحبان فروشگاه‌های کوچک',
     priceToman: 12_000_000,
     channels: ['instagram', 'website'],
+    // No destinations by default: the publish tests below turn on the one they
+    // are about, so no test depends on what an earlier one left behind.
+    destinations: emptyDestinations(),
   })
 
 const emptyProfile = () =>
@@ -151,4 +155,60 @@ test('deleting a piece takes its schedule with it', async () => {
   assert.equal(q.deleteContentPiece(piece.id), false)
   assert.equal(q.getContentPiece(piece.id), undefined)
   assert.equal(q.listContent().length, 0)
+})
+
+test('a non-live channel records the destination the profile names for it', async () => {
+  clear()
+  fillProfile()
+  persistPlan(await produce({ count: 1, channels: ['website'], speed: 0 }))
+
+  // Filled in after the batch was written, which is the whole reason the
+  // address is resolved when the piece publishes rather than when it is made.
+  q.saveBusiness({ destinations: { ...emptyDestinations(), website: 'https://noor.example/api/posts' } })
+
+  assert.equal(await publishDue(new Date()), 1)
+  const [piece] = q.listContent({ limit: 1 })
+  assert.equal(piece.status, 'simulated', 'the website adapter only records; it does not deliver')
+  assert.equal(piece.target, 'https://noor.example/api/posts', 'the row remembers where it went')
+})
+
+test('a live channel with a destination delivers to exactly that address', async () => {
+  clear()
+  fillProfile()
+  q.saveBusiness({ destinations: { ...emptyDestinations(), telegram: '@wave-tools' } })
+  persistPlan(await produce({ count: 1, channels: ['telegram'], speed: 0 }))
+
+  // The one live channel available offline, so the network is the stub: what
+  // matters is that the owner's destination is what the adapter is handed.
+  const realFetch = globalThis.fetch
+  let sentTo: unknown = null
+  globalThis.fetch = (async (_url: unknown, init: { body: string }) => {
+    sentTo = (JSON.parse(init.body) as { chat_id: unknown }).chat_id
+    return { ok: true, json: async () => ({ ok: true, result: { message_id: 77 } }) }
+  }) as unknown as typeof fetch
+
+  try {
+    assert.equal(await publishDue(new Date()), 1, 'the piece now has somewhere to go')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+
+  assert.equal(sentTo, '@wave-tools')
+  const [piece] = q.listContent({ limit: 1 })
+  assert.equal(piece.status, 'sent')
+  assert.equal(piece.target, '@wave-tools')
+  assert.equal(q.listContent({ status: 'failed' }).length, 0)
+})
+
+test('clearing a destination brings back target:required, reason intact', async () => {
+  clear()
+  fillProfile()
+  q.saveBusiness({ destinations: { ...emptyDestinations(), telegram: '   ' } })
+  persistPlan(await produce({ count: 1, channels: ['telegram'], speed: 0 }))
+
+  assert.equal(await publishDue(new Date()), 0)
+  const failed = q.listContent({ status: 'failed' })
+  assert.equal(failed.length, 1)
+  assert.equal(failed[0].note, 'target:required')
+  assert.equal(failed[0].target, null, 'a blank destination is not set, not an empty address')
 })

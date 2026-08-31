@@ -64,3 +64,13 @@ test("a channel's second line counts what it published, not a multiple of touche
   // its traffic, which is the whole point of the change.
   assert.equal(metrics['telegram.stat2'], 0)
 })
+
+test('the voice node separates calls it set up from calls that actually happened', () => {
+  const facts = emptyFacts()
+  facts.callsPrepared = 12
+  facts.callsCompleted = 3
+
+  const metrics = buildMetrics(facts)
+  assert.equal(metrics['vapi.badge'], 12)
+  assert.equal(metrics['vapi.stat'], 3, 'a dialled call is not a held one until the provider says so')
+})

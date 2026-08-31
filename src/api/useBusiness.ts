@@ -2,18 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   BUSINESS_CHANNELS,
   BUSINESS_LIMITS,
+  DESTINATION_LIMIT,
   TONES,
   emptyBusiness,
+  emptyDestinations,
+  normalizeDestinations,
   type BusinessChannel,
   type BusinessProfile,
+  type ChannelDestinations,
   type Tone,
 } from '../../shared/business'
 import { ApiError, getJson, patchJson } from './client'
 
 // The contract itself lives in shared/, next to the server that stores it.
 // Re-exported so the form has one import for the shape and its hook.
-export { BUSINESS_CHANNELS, BUSINESS_LIMITS, emptyBusiness }
-export type { BusinessChannel, BusinessProfile }
+export { BUSINESS_CHANNELS, BUSINESS_LIMITS, DESTINATION_LIMIT, emptyBusiness, emptyDestinations }
+export type { BusinessChannel, BusinessProfile, ChannelDestinations }
 
 // The names the form already uses for the tone list.
 export const BUSINESS_TONES = TONES
@@ -45,6 +49,16 @@ export type BusinessState = {
 
 type BusinessResponse = { business: BusinessProfile; missing: string[] }
 
+/**
+ * The server owns the profile, but a deployment whose API predates the
+ * destinations still answers without them. Normalizing on the way in means the
+ * form always has a value per channel instead of reading through a hole.
+ */
+const received = (business: BusinessProfile): BusinessProfile => ({
+  ...business,
+  destinations: normalizeDestinations(business.destinations),
+})
+
 function failureOf(cause: unknown): BusinessFailure {
   if (!(cause instanceof ApiError)) return { kind: 'offline', messages: [] }
   if (cause.status === 400) return { kind: 'validation', messages: cause.messages }
@@ -68,7 +82,7 @@ export function useBusiness(): BusinessState {
   const refresh = useCallback(async () => {
     try {
       const data = await getJson<BusinessResponse>('/api/business')
-      setBusiness(data.business)
+      setBusiness(received(data.business))
       setMissing(data.missing)
       setOnline(true)
     } catch {
@@ -87,7 +101,7 @@ export function useBusiness(): BusinessState {
     setError(null)
     try {
       const data = await patchJson<BusinessResponse>('/api/business', patch)
-      setBusiness(data.business)
+      setBusiness(received(data.business))
       setMissing(data.missing)
       setOnline(true)
       setSavedAt(Date.now())

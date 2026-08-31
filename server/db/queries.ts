@@ -262,6 +262,7 @@ export function gatherFacts(): PipelineFacts {
   facts.crmRecords = count('SELECT COUNT(*) AS n FROM lead_events')
   facts.meetingsBooked = count("SELECT COUNT(*) AS n FROM lead_events WHERE type = 'call_booked'")
   facts.callsCompleted = count("SELECT COUNT(*) AS n FROM lead_events WHERE type = 'call_completed'")
+  facts.callsPrepared = count('SELECT COUNT(*) AS n FROM calls')
   facts.voiceCalls = count("SELECT COUNT(*) AS n FROM lead_events WHERE type IN ('call_booked','call_completed')")
 
   facts.openDealValueToman = count(
@@ -853,4 +854,67 @@ function writeDestinations(destinations: ChannelDestinations): void {
  */
 export const setContentTarget = (id: number, target: string | null): void => {
   run('UPDATE content_schedule SET target = ? WHERE content_piece_id = ?', target, id)
+}
+
+// ── call outcomes ────────────────────────────────────────────────────────
+
+export type CallOutcomeRow = {
+  call_id: number
+  status: string
+  ended_reason: string | null
+  seconds: number | null
+  recording_url: string | null
+  transcript: string | null
+  summary: string | null
+  raw_json: string
+  at: string
+}
+
+/**
+ * The call a provider's report is about. Newest first: an id is the provider's
+ * to reuse, and the most recent row is the one that was just on the phone.
+ */
+export const callByExternalId = (externalId: string): CallRecord | undefined => {
+  const found = row<CallRow>('SELECT * FROM calls WHERE external_id = ? ORDER BY id DESC LIMIT 1', externalId)
+  return found ? toCall(found) : undefined
+}
+
+export const callOutcomeFor = (callId: number): CallOutcomeRow | undefined =>
+  row<CallOutcomeRow>('SELECT * FROM call_outcomes WHERE call_id = ?', callId)
+
+export type SaveCallOutcomeInput = {
+  callId: number
+  status: string
+  endedReason?: string | null
+  seconds?: number | null
+  recordingUrl?: string | null
+  transcript?: string | null
+  summary?: string | null
+  raw: unknown
+}
+
+/** Upsert, because a provider that gets no answer sends the report again. */
+export function saveCallOutcome(input: SaveCallOutcomeInput): CallOutcomeRow {
+  run(
+    `INSERT INTO call_outcomes (call_id, status, ended_reason, seconds, recording_url, transcript, summary, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (call_id) DO UPDATE SET
+       status = excluded.status,
+       ended_reason = excluded.ended_reason,
+       seconds = excluded.seconds,
+       recording_url = excluded.recording_url,
+       transcript = excluded.transcript,
+       summary = excluded.summary,
+       raw_json = excluded.raw_json,
+       at = datetime('now')`,
+    input.callId,
+    input.status,
+    input.endedReason ?? null,
+    input.seconds ?? null,
+    input.recordingUrl ?? null,
+    input.transcript ?? null,
+    input.summary ?? null,
+    JSON.stringify(input.raw ?? null),
+  )
+  return callOutcomeFor(input.callId)!
 }

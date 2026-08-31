@@ -250,3 +250,23 @@ CREATE TABLE IF NOT EXISTS business_destinations (
   destinations_json TEXT NOT NULL DEFAULT '{}',
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ── call outcomes ────────────────────────────────────────────────────────
+-- What the voice provider reported once the call was over. One row per call,
+-- so a webhook the provider retries updates rather than duplicates. `raw_json`
+-- is the payload whole: when the parser does not recognise a shape, the honest
+-- record is what arrived, not a guessed outcome. `status` here is the outcome
+-- vocabulary of server/domain/call-outcome.ts, not the dialling status the
+-- `calls` row carries.
+CREATE TABLE IF NOT EXISTS call_outcomes (
+  call_id       INTEGER PRIMARY KEY REFERENCES calls (id) ON DELETE CASCADE,
+  status        TEXT    NOT NULL,
+  ended_reason  TEXT,
+  seconds       REAL,
+  recording_url TEXT,
+  transcript    TEXT,
+  summary       TEXT,
+  raw_json      TEXT    NOT NULL,
+  at            TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS call_outcomes_status ON call_outcomes (status, call_id DESC);

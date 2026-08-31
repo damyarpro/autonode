@@ -19,6 +19,8 @@ export type PipelineFacts = {
   crmRecords: number
   meetingsBooked: number
   callsCompleted: number
+  /** Briefs written and handed to the voice adapter, dialled or not. */
+  callsPrepared: number
   voiceCalls: number
   openDealValueToman: number
   paidTotalToman: number
@@ -46,6 +48,7 @@ export const emptyFacts = (): PipelineFacts => ({
   crmRecords: 0,
   meetingsBooked: 0,
   callsCompleted: 0,
+  callsPrepared: 0,
   voiceCalls: 0,
   openDealValueToman: 0,
   paidTotalToman: 0,
@@ -99,8 +102,11 @@ export function buildMetrics(facts: PipelineFacts): MetricMap {
   metrics['cold.badge'] = facts.byRoute.cold
   metrics['cold.stat'] = facts.byRoute.cold
 
-  metrics['vapi.badge'] = facts.voiceCalls
-  metrics['vapi.stat'] = facts.voiceCalls
+  // Two different numbers on purpose: how many calls this node set up, and how
+  // many of them a person actually had. They were the same value while nothing
+  // came back from the provider, which made a started call look like a held one.
+  metrics['vapi.badge'] = facts.callsPrepared
+  metrics['vapi.stat'] = facts.callsCompleted
   metrics['salescall.badge'] = facts.meetingsBooked
   metrics['salescall.stat'] = facts.meetingsBooked
 

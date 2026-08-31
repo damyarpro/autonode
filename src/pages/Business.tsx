@@ -10,10 +10,13 @@ import {
   BUSINESS_CHANNELS,
   BUSINESS_LIMITS,
   BUSINESS_TONES,
+  DESTINATION_LIMIT,
+  emptyDestinations,
   useBusiness,
   type BusinessChannel,
   type BusinessProfile,
   type BusinessTone,
+  type ChannelDestinations,
 } from '../api/useBusiness'
 import { toLatinDigits } from '../i18n/format'
 import { useI18n } from '../i18n/I18nProvider'
@@ -85,6 +88,12 @@ const COPY = {
     en: 'Where you actually publish; the copy is written for these.',
   },
   channelsNone: { fa: 'هنوز کانالی انتخاب نشده.', en: 'No channel picked yet.' },
+
+  destinations: { fa: 'مقصد انتشار هر کانال', en: 'Where each channel publishes' },
+  destinationsWhy: {
+    fa: 'کانالی که مقصد ندارد نمی‌تواند منتشر کند: محتوایش با خطای «مقصد انتشار» ناموفق می‌ماند. هر کدام اختیاری است و هر وقت خواستی می‌توانی پرش کنی.',
+    en: 'A channel with no destination cannot publish: its pieces fail with a publishing-target error. Each one is optional and can be filled in whenever you like.',
+  },
   ctaLabel: { fa: 'لینک دعوت به اقدام', en: 'Call-to-action link' },
   ctaPlaceholder: { fa: 'https://…', en: 'https://…' },
   ctaHint: {
@@ -142,6 +151,39 @@ const CHANNEL_LABEL: Record<BusinessChannel, Bi> = {
   website: { fa: 'وب‌سایت', en: 'Website' },
 }
 
+/**
+ * What each channel wants as an address. The server deliberately checks none of
+ * these shapes — a guessed pattern would reject a value that works — so this
+ * copy is the only place the owner is told what to paste in.
+ */
+const DESTINATION_COPY: Record<BusinessChannel, { label: Bi; hint: Bi; placeholder: Bi }> = {
+  instagram: {
+    label: { fa: 'مقصد اینستاگرام', en: 'Instagram destination' },
+    hint: { fa: 'شناسه‌ی اکانت بیزینسی اینستاگرام', en: 'The Instagram business account id' },
+    placeholder: { fa: '۱۷۸۴۱…', en: '17841…' },
+  },
+  telegram: {
+    label: { fa: 'مقصد تلگرام', en: 'Telegram destination' },
+    hint: { fa: '@نام کانال، یا شناسه‌ی عددی چت', en: 'The channel @name, or the numeric chat id' },
+    placeholder: { fa: '@نام‌کانال', en: '@yourchannel' },
+  },
+  linkedin: {
+    label: { fa: 'مقصد لینکدین', en: 'LinkedIn destination' },
+    hint: { fa: 'شناسه‌ی URN سازمان یا شخصی که پست از طرف او می‌رود', en: 'The organization or person URN you post as' },
+    placeholder: { fa: 'urn:li:organization:…', en: 'urn:li:organization:…' },
+  },
+  youtube: {
+    label: { fa: 'مقصد یوتیوب', en: 'YouTube destination' },
+    hint: { fa: 'شناسه‌ی کانال یوتیوب', en: 'The YouTube channel id' },
+    placeholder: { fa: 'UC…', en: 'UC…' },
+  },
+  website: {
+    label: { fa: 'مقصد وب‌سایت', en: 'Website destination' },
+    hint: { fa: 'نشانی‌ای که سایتت مطلب را روی آن منتشر می‌کند', en: 'The URL your site publishes to' },
+    placeholder: { fa: 'https://…', en: 'https://…' },
+  },
+}
+
 const FIELD_LABEL: Record<string, Bi> = {
   name: COPY.nameLabel,
   whatWeSell: COPY.sellLabel,
@@ -151,6 +193,9 @@ const FIELD_LABEL: Record<string, Bi> = {
   channels: COPY.channelsLabel,
   ctaUrl: COPY.ctaLabel,
   notes: COPY.notesLabel,
+  // A rejected destination names its channel as the field, so `telegram:too_long:200`
+  // reads as a sentence about that channel's destination and not about the channel.
+  ...Object.fromEntries(BUSINESS_CHANNELS.map((channel) => [channel, DESTINATION_COPY[channel].label])),
 }
 
 /**
@@ -199,6 +244,8 @@ type Form = {
   channels: BusinessChannel[]
   ctaUrl: string
   notes: string
+  /** Empty string is "not set"; the route stores that as null. */
+  destinations: Record<BusinessChannel, string>
 }
 
 const formOf = (business: BusinessProfile): Form => ({
@@ -210,10 +257,23 @@ const formOf = (business: BusinessProfile): Form => ({
   channels: business.channels,
   ctaUrl: business.ctaUrl ?? '',
   notes: business.notes ?? '',
+  destinations: Object.fromEntries(
+    BUSINESS_CHANNELS.map((channel) => [channel, business.destinations?.[channel] ?? '']),
+  ) as Record<BusinessChannel, string>,
 })
 
 /** Persian and Arabic keyboards produce their own digits; the API wants ASCII. */
 const REQUIRED_TOTAL = 3
+
+/**
+ * What the route stores: trimmed, and blank cleared to null rather than kept as
+ * an empty string a publisher would read as an address.
+ */
+const trimmedDestinations = (destinations: Record<BusinessChannel, string>): ChannelDestinations => {
+  const next = emptyDestinations()
+  for (const channel of BUSINESS_CHANNELS) next[channel] = destinations[channel].trim() || null
+  return next
+}
 
 export default function Business() {
   const { t, n, num } = useI18n()
@@ -248,6 +308,9 @@ export default function Business() {
         : [...form.channels, channel],
     )
 
+  const setDestination = (channel: BusinessChannel, value: string) =>
+    set('destinations', { ...form.destinations, [channel]: value })
+
   const price = Number(form.price) || 0
   const blocked = !form.name.trim() || !form.whatWeSell.trim() || !form.audience.trim()
 
@@ -264,6 +327,7 @@ export default function Business() {
       channels: form.channels,
       ctaUrl: form.ctaUrl.trim(),
       notes: form.notes.trim(),
+      destinations: trimmedDestinations(form.destinations),
     })
   }
 
@@ -459,6 +523,34 @@ export default function Business() {
               <p className="mt-1.5 text-[10.5px] text-white/30">{t(COPY.channelsNone)}</p>
             )}
           </Field>
+
+          <div className="rounded-xl border border-hairline bg-white/[0.02] p-3">
+            <div className="text-[11.5px] text-white/70">{t(COPY.destinations)}</div>
+            <p className="mt-1 text-[10.5px] leading-relaxed text-white/40">{t(COPY.destinationsWhy)}</p>
+
+            <div className="mt-3 flex flex-col gap-3.5">
+              {BUSINESS_CHANNELS.map((channel) => (
+                <Field
+                  key={channel}
+                  label={DESTINATION_COPY[channel].label}
+                  htmlFor={`business-destination-${channel}`}
+                  hint={DESTINATION_COPY[channel].hint}
+                >
+                  <input
+                    id={`business-destination-${channel}`}
+                    // An address is never Persian text, so it reads left to
+                    // right inside a page that otherwise mirrors.
+                    dir="ltr"
+                    value={form.destinations[channel]}
+                    maxLength={DESTINATION_LIMIT}
+                    placeholder={t(DESTINATION_COPY[channel].placeholder)}
+                    onChange={(event) => setDestination(channel, event.target.value)}
+                    className={`${SHELL} mt-1.5 text-start`}
+                  />
+                </Field>
+              ))}
+            </div>
+          </div>
 
           <Field label={COPY.ctaLabel} htmlFor="business-cta" hint={COPY.ctaHint}>
             <input
